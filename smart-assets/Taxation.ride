@@ -1,0 +1,29 @@
+# This script allows to apply taxation models to assets
+# Token owners can transfer it only if they pay taxes to the issuer
+# The tax size is defined by token issuer in data transaction
+
+match (tx) {
+    # we allow only mass transfer transactions
+    # first transfer in MassTransfer should always go to the issuer
+    case mtt:MassTransferTransaction => {
+        let firstRecipient = mtt.transfers[0].recipient
+        let firstAmount = mtt.transfers[0].amount
+        let assetId = extract(mtt.assetId)
+        let issueTransaction = transactionById(assetId)
+
+        # assetId equals to issue transaction id, so we can get issuer public key (and address) from the issue transaction
+        match(issueTransaction) {
+            case issueTx: IssueTransaction => {
+                let issuerAddress = addressFromPublicKey(issueTx.senderPublicKey)
+                # to set tax amount, issuer should make a data transaction with integer value by key matching assetId
+                let taxSize = extract(getInteger(issuerAddress, toBase58String(assetId)))
+
+                firstRecipient == issuerAddress # recipient for the first transfer should be the issuer address
+                &&
+                firstAmount >= mtt.totalAmount / 100 * taxSize # tax amount can't be less than defined in data transaction
+            }
+            case _ => false
+        }
+    }
+    case _ => false
+  }

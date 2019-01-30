@@ -1,0 +1,84 @@
+# This is a token-game
+# When you receive this token, you have 5000 blocks to transfer it to somebody else,
+# after that 5000 blocks you will have to pay the fee more than 1 Waves to transfer it.
+# you have to pay 10 Waves as fee to burn it, you can transfer it only to an account with >10 Waves
+
+let minimumWavesBalance = 10_00_000_000
+let moveTimeInBlocks = 5000
+let minimalFeeToMove = 1_0_000_000
+let minimalFeeToBurn = 5_0_000_000
+
+
+
+match (tx) {
+    case t:TransferTransaction => {
+
+        # to get a height of blockchain when HotPotato was received we expect transaction id
+        # of incoming transfer transaction in the attachment
+        let txId = t.attachment
+
+        # script can check that current recipient doesnt hold HotPotato
+        # but not now :)
+
+        # let currentRecipientBalance = assetBalance(t.recipient, t.assetId)
+        let currentRecipientWavesBalance = wavesBalance(t.recipient)
+
+        # assetId equals to issue transaction id, so we can get issuer public key (and address) from the issue transaction
+        let transaction = transactionById(extract(t.assetId))
+
+        match (transaction) {
+            case issueTx:IssueTransaction => {
+                # issuer is allowed to send tokens without any additional requirements except signature and recipient Waves balance (should be >= 10)
+                let transactionByIssuer = t.senderPublicKey == issueTx.senderPublicKey
+                if (transactionByIssuer) then {
+                    if (currentRecipientWavesBalance < minimumWavesBalance) then {
+                        throw("Current balance is less than minimalWavesBalance")
+                    }else {
+                        true
+                    }
+                }else if (size(t.attachment) < 32) then {
+                    throw("Attachment should contain transaction id ")
+                }else{
+                    # getting incoming transaction by id (from the attachment)
+                    let receiveTx = transactionById(txId)
+                    match (receiveTx) {
+                        case recTx:TransferTransaction | MassTransferTransaction => {
+                            # get the number of block when address get a potato
+                            let receivedBlockNumber = extract(transactionHeightById(recTx.id))
+                            # check that we received assets in allowed span
+                            let receivedAssetInLastNBlocks = (height - receivedBlockNumber) <= moveTimeInBlocks && t.assetId == recTx.assetId
+                            let feeMore1Waves = t.fee >= minimalFeeToMove
+                            if (!receivedAssetInLastNBlocks && !feeMore1Waves) then {
+                                throw("You got potato long time ago, now you have to pay 1 WAVES fee")
+                            }else {
+                                receivedAssetInLastNBlocks || feeMore1Waves
+                            }
+                        }
+                        case _ => throw("Receive tx should be a transfer")
+                    }
+                }
+            }
+            case _ => throw("Not issue tx")
+        }
+    }
+    # we allow to burn a token only if fee > 5 waves
+    case burn: BurnTransaction => {
+        if (burn.fee < minimalFeeToBurn) then {
+            throw("You have to pay 5 WAVES to burn this token")
+        }else{
+            true
+        }
+    }
+    # MassTransfer and SetAssetScript transactions are allowed only for issuer
+    case mass: MassTransferTransaction | SetAssetScriptTransaction => {
+        let transaction = transactionById(extract(mass.assetId))
+
+        match (transaction) {
+            case issueTx:IssueTransaction => {
+                mass.senderPublicKey == issueTx.senderPublicKey
+            }
+            case _ => throw("Bad issue tx type")
+        }
+    }
+    case _ => throw("You only can transfer this token")
+  }
