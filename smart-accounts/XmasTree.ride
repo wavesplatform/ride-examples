@@ -1,0 +1,140 @@
+# Contract example from tradisys.com team
+
+### Prerequisites ###
+# - balance = playersPrize + dataTransactionFee * 3 + transferTransactionFee
+# - no data required
+#####################
+
+### Player's precautions ###
+# - Smart account balance is >= playersPrize + dataTransactionFee * 2 + transferTransactionFee
+# - Data on account: playersPublicKey matches player's public key, lockedAt is approximately equal to current block height.
+############################
+
+### Normal flow ###
+# 1) Data transaction from server, data = [lockedAt, playersPublicKey]. lockedAt = height or height - 1. Transition: InitialState -> LockedState
+# 2) Data transaction from player, data = [playersChoice]. Transition: LockedState -> PlayerRevealedHisChoiceState
+# 3) Transfer transaction  from player, amount = donation
+# 4) Data transaction from server, data = [serversChoice, serversSalt]. Transition: PlayerRevealedHisChoiceState -> WinnerIsDeterminedState
+# 5) Transfer transaction, recipients = winner (playersPrize + donation). Transition: PlayerDecidedNotToSendDonationState -> <InvalidState>
+###################
+
+### Emergency flow ###
+# 1) Normal flow #1 is completed, but user hasn't done any actions in timeoutInBlocks blocks - we allow server to override
+#    playersPublicKey and lockedAt data. Transition: UserDecidedNotToPlayState -> LockedState
+# 2) Normal flow #2 is completed, but server hasn't done any actions in timeoutInBlocks * 2 blocks from lockedAt - we allow player
+#    to widthdraw all the money. Transition: ServerDecidedNotToPlayState -> <InvalidState>
+# 3) Players sent his choice (Normal Flow #2), but not his money (Normal flow #3) - we allow server to withdraw all the money.
+#    Transition: PlayerDecidedNotToSendDonationState -> <InvalidState>
+######################
+
+### Injected values ###
+let serversPublicKey = base58'5AzfA9UfpWVYiwFwvdr77k6LWupSTGLb14b24oVdEpMM'
+let enctyptedServersChoice = base58'5AzfA9UfpWVYiwFwvdr77k6LWupSTGLb14b24oVdEpMM' # keccak256(serversChoice + serversSalt)
+let donation = 100_000_000 # waves * 100_000_000, eq. 300000000 (= 3 waves)
+let playersPrize = 100_000_000 # waves * 100_000_000, eq. 400000000 (= 2 waves)
+let boxesCount = 5
+#######################
+
+### Values from data ###
+let maybeDataPlayersPublicKey = getString(tx.sender, "playersPublicKey")
+let dataPlayersPublicKey = fromBase58String(extract(maybeDataPlayersPublicKey))
+let dataLockedAt = extract(getInteger(tx.sender, "lockedAt"))
+let maybeDataPlayersChoice = getInteger(tx.sender, "playersChoice")
+let dataPlayersChoice = extract(maybeDataPlayersChoice)
+let maybeDataServersChoice = getInteger(tx.sender, "serversChoice")
+let dataServersChoice = extract(maybeDataServersChoice)
+########################
+
+let timeoutInBlocks = 120
+let dataTransactionFee = 500000 # 0.001 + 0.004 (smart account fee)
+let transferTransactionFee = 500000 # 0.001 + 0.004 (smart account fee)
+let serversAddress = addressFromPublicKey(serversPublicKey)
+let playersAddress = addressFromPublicKey(dataPlayersPublicKey)
+let accountBalance = wavesBalance(tx.sender)
+
+let senderIsServer = sigVerify(tx.bodyBytes, tx.proofs[0], serversPublicKey)
+let senderIsPlayer = sigVerify(tx.bodyBytes, tx.proofs[0], dataPlayersPublicKey)
+
+### States ###
+# InitialState @ no data is deployed to account
+# Balance: playersPrize + dataTransactionFee * 3 + transferTransactionFee
+let isInitialState = !isDefined(maybeDataPlayersPublicKey) && accountBalance >= playersPrize + dataTransactionFee * 3 + transferTransactionFee
+
+# LockedState @ account is locked for a specific player by server
+# State: playersPublicKey and lockedAt in data; height <= lockedAt + timeoutInBlocks
+# Balance: donation + dataTransactionFee * 2 + massTransferTransactionFee
+let dataIsValidForLockedState = isDefined(maybeDataPlayersPublicKey) && !isDefined(maybeDataPlayersChoice)
+let lockedStateTimeout = height > dataLockedAt + timeoutInBlocks
+let isLockedState = dataIsValidForLockedState && !lockedStateTimeout
+
+# UserDecidedNotToPlayState @ user didn't send a data transaction in timeoutInBlocks blocks
+let isUserDecidedNotToPlayState = dataIsValidForLockedState && lockedStateTimeout
+
+# PlayerRevealedHisChoiceState @ player sent a data transaction with his choice (and donationted simultaneously)
+# State: playersPublicKey, lockedAt, playersChoice in data; height <= lockedAt + timeoutInBlocks * 2
+# Balance: playersPrize (playersPrize + donation is fine too) + dataTransactionFee + transferTransactionFee
+let dataIsValidForPlayerRevealedState = isDefined(maybeDataPlayersChoice) && !isDefined(maybeDataServersChoice)
+let playerRevealedStateTimeout = (height > dataLockedAt + timeoutInBlocks * 2) && (accountBalance >= playersPrize + donation + dataTransactionFee + transferTransactionFee)
+let isPlayerRevealedHisChoiceState = dataIsValidForPlayerRevealedState && !playerRevealedStateTimeout
+
+# ServerDecidedNotToPlayState @ the same as PlayerRevealedHisChoiceState, but after timeoutInBlocks * from lockedAt
+# Balance: strictly >= playersPrize + donation + dataTransactionFee + transferTransactionFee, otherwise player will be able to publish data transaction w/o transfer
+let isServerDecidedNotToPlayState = dataIsValidForPlayerRevealedState && playerRevealedStateTimeout
+
+# WinnerIsDeterminedState @ we are ready to send money to winner
+# Balance: strictly >= playersPrize + donation + transferTransactionFee
+let isDataValidForWinnerIsDeterminedState = isDefined(maybeDataServersChoice)
+let isBalanceValidForWinnerIsDeterminedState = accountBalance >= playersPrize + donation + transferTransactionFee
+let isWinnerIsDeterminedState = isDataValidForWinnerIsDeterminedState && isBalanceValidForWinnerIsDeterminedState
+
+# PlayerDecidedNotToSendDonationState @ player sent data transaction with his choice, but not a transfer transaction with donation
+let isPlayerDecidedNotToSendDonationState = isDataValidForWinnerIsDeterminedState && !isBalanceValidForWinnerIsDeterminedState
+##############
+
+match (tx) {
+  case dtx:DataTransaction => (
+    let payloadSize = size(dtx.data)
+    let firstPayloadName = dtx.data[0].key
+    let secondPayloadName = dtx.data[1].key
+    let firstPayloadAsInteger = extract(getInteger(dtx.data, firstPayloadName))
+    let secondPayloadAsString = extract(getString(dtx.data, secondPayloadName))
+    let dataFeeIsOk = dtx.fee == dataTransactionFee
+
+    if (isInitialState || isUserDecidedNotToPlayState) then ( # Normal flow #1, Emergency flow #1
+        let validLockedAtIsProvided = firstPayloadName == "lockedAt" && (firstPayloadAsInteger <= height && height - firstPayloadAsInteger <= 5)
+        let playersPublicKeyIsProvided = secondPayloadName == "playersPublicKey"
+        senderIsServer && dataFeeIsOk && validLockedAtIsProvided && playersPublicKeyIsProvided && payloadSize == 2
+    ) else if (isLockedState) then ( # Normal flow #2
+        let validPlayersChoiceIsProvided = firstPayloadName == "playersChoice" && (firstPayloadAsInteger >= 0 && firstPayloadAsInteger < boxesCount)
+        senderIsPlayer && dataFeeIsOk && validPlayersChoiceIsProvided && payloadSize == 1
+    ) else if (isPlayerRevealedHisChoiceState) then ( # Normal flow #4
+        let validServerChoiceWasProvided = firstPayloadName == "serversChoice" && (firstPayloadAsInteger >= 0 && firstPayloadAsInteger < boxesCount)
+        let serversSaltWasProvided = secondPayloadName == "serversSalt"
+        let choiceAndSaltMatchesHardcodedValue = keccak256(toBytes(toString(firstPayloadAsInteger) + secondPayloadAsString)) == enctyptedServersChoice
+
+        senderIsServer && dataFeeIsOk && validServerChoiceWasProvided && serversSaltWasProvided && choiceAndSaltMatchesHardcodedValue && payloadSize == 2
+    ) else (
+        false 
+    )
+  )
+  case ttx:TransferTransaction => (
+      let transferFeeIsOk = ttx.fee == transferTransactionFee
+
+      if (isWinnerIsDeterminedState) then ( # Normal flow #5
+        let winnerAddress = if (dataServersChoice == dataPlayersChoice) then playersAddress else serversAddress
+          let prizeGoesToWinner = ttx.recipient == winnerAddress
+
+        transferFeeIsOk && prizeGoesToWinner && ttx.amount == playersPrize + donation
+      ) else if (isServerDecidedNotToPlayState) then ( # Emergency flow #2
+        let recipientIsPlayer = ttx.recipient == playersAddress
+
+        transferFeeIsOk && recipientIsPlayer && ttx.amount == playersPrize + donation
+      ) else if (isPlayerDecidedNotToSendDonationState) then ( # Emergency flow #3
+        let recipientIsServer = ttx.recipient == serversAddress
+        transferFeeIsOk && recipientIsServer && ttx.amount == playersPrize
+      ) else (
+        false
+      )
+  )
+  case _ => false
+}
