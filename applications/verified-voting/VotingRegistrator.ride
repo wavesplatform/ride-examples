@@ -3,9 +3,10 @@ let minimalVotingHeight = 100
 
 match (tx) {
     case d:DataTransaction =>
-        if (size(d.data) == 1) then
+        if (size(d.data) == 2) then
             #sender should place waves-transfer txId to pay fees for voting in proof[0] of data tx
             let feeTransferId = transactionById(d.proofs[0])
+
             match (feeTransferId) {
                 case fT:TransferTransaction =>
                     let votingHeight = extract(getInteger(d.data,1))
@@ -18,8 +19,18 @@ match (tx) {
                     #asset should not have decimals to prevent satoshi calculation
                     && match(transactionById(fromBase58String(d.data[0].key))){
                         case i:IssueTransaction =>
+                            let accountScriptedProof = extract(getBinary(d.data, 1))
+                            let accountScriptHash = extract(getBinary(voteBank, "IssuerAccountScriptHash"))
+                            let scriptTx = transactionById(accountScriptedProof)
+
                             if (fT.amount >= i.quantity * 900000) then
-                                i.decimals == 0
+                                match (scriptTx){
+                                    case s:SetScriptTransaction =>
+                                        sha256(extract(s.script)) == accountScriptHash
+                                    case _ =>
+                                    throw("voting initiator not scripted, or script is wrong")
+                                }
+                                && i.decimals == 0
                                 && fT.senderPublicKey == i.senderPublicKey
                                 && sigVerify(d.bodyBytes, d.proofs[1], fT.senderPublicKey)
                              else

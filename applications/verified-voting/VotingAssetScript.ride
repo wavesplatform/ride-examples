@@ -1,4 +1,4 @@
-let voteBankPublicKey = fromBase58String("")
+let voteBankPublicKey = fromBase58String("azWhyNMQjEY9AQt2eySXXqR28NJwEbJTKy132zkVoTe")
 let voteBank = addressFromPublicKey(voteBankPublicKey)
 
 match (tx) {
@@ -11,24 +11,15 @@ match (tx) {
                 #from voteReg account to specific vote-variants addresses - checked by vote bank account script
                 #tokens quantity should be equal to number of voters
                 #all issued tokens should be transfered to voteReg account
-                let q = issueTx.description
                 let regAssetForVoting =  getInteger(voteBank, toBase58String(issueTx.id))
                 if (t.sender == issueTx.sender) then
                     let votingAssetConditionsMet = isDefined(regAssetForVoting)
                     && t.recipient == voteBank
                     && !issueTx.reissuable
                     && issueTx.quantity == t.amount
+                    && issueTx.decimals == 0
                     if (votingAssetConditionsMet) then
-                    #voting account in issuer data should be protected from unfirified override
-                        let accountScriptHash = extract(getBinary(voteBank, "IssuerAccountScriptHash"))
-                        let accountScriptedProof = extract(getBinary(voteBank, toBase58String(issueTx.sender.bytes)))
-                        let scriptTx = transactionById(accountScriptedProof)
-                        match (scriptTx){
-                            case s:SetScriptTransaction =>
-                                sha256(extract(s.script)) == accountScriptHash
-                            case _ =>
-                                false
-                        }
+                        true
                     else
                         throw("start voting conditions not met. Voting not registred or wrong asset")
                 else
