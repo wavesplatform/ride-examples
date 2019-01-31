@@ -1,0 +1,49 @@
+let voteBank = addressFromPublicKey(fromBase58String(""))
+let minimalVotingHeight = 100
+
+match (tx) {
+    case d:DataTransaction =>
+        if (size(d.data) == 1) then
+            #sender should place waves-transfer txId to pay fees for voting in proof[0] of data tx
+            let feeTransferId = transactionById(d.proofs[0])
+            match (feeTransferId) {
+                case fT:TransferTransaction =>
+                    let votingHeight = extract(getInteger(d.data,1))
+                    !isDefined(getString(voteBank, d.data[0].key))
+                    && fT.recipient == voteBank
+                    && votingHeight > height
+                    && votingHeight - height > minimalVotingHeight
+
+                    #script should guaranty that user payed fees for all transfers
+                    #asset should not have decimals to prevent satoshi calculation
+                    && match(transactionById(fromBase58String(d.data[0].key))){
+                        case i:IssueTransaction =>
+                            if (fT.amount >= i.quantity * 900000) then
+                                i.decimals == 0
+                                && fT.senderPublicKey == i.senderPublicKey
+                                && sigVerify(d.bodyBytes, d.proofs[1], fT.senderPublicKey)
+                             else
+                                throw("minimum trasfer transaction amount is" + toString(i.quantity * 900000))
+                        case _ =>
+                            false
+                    }
+                case _ =>
+                    false
+            }
+        else
+            throw("data tx should contain only one key-value pair: assetId-maxVotingHeight")
+    case t:TransferTransaction =>
+        if (isDefined(getInteger(voteBank, toBase58String(extract(t.assetId))))) then
+            let h = getInteger(voteBank, toBase58String(extract(t.assetId)))
+            (extract(h) <= height)
+                && (addressFromRecipient(t.recipient) == addressFromString(extract(getString(voteBank, "pros")))
+                || addressFromRecipient(t.recipient) == addressFromString(extract(getString(voteBank, "cons"))))
+                && isDefined(getString(voteBank, "pros"))
+                && isDefined(getString(voteBank, "cons"))
+        else
+            throw("you cannot vote with this token. It's not registred")
+    case s:SetScriptTransaction =>
+        sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+    case _ =>
+        false
+  }

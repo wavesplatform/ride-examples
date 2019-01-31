@@ -18,7 +18,6 @@ match (tx) {
                     && t.recipient == voteBank
                     && !issueTx.reissuable
                     && issueTx.quantity == t.amount
-                    && issueTx.decimals == 0
                     if (votingAssetConditionsMet) then
                     #voting account in issuer data should be protected from unfirified override
                         let accountScriptHash = extract(getBinary(voteBank, "IssuerAccountScriptHash"))
