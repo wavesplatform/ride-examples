@@ -7,15 +7,17 @@ let this = extract(tx.sender)
 
 match (tx) {
     case d:DataTransaction =>
-        if (size(d.data) == 1 && isDefined(getBoolean(this, d.data[0].key))) then
-            if (!isDefined(getBinary(this,d.data[0].key))) then
-                size(extract(getBinary(d.data, 0))) > 64
+        if (size(d.data) == 1 && isDefined(getBinary(this,d.data[0].key))) then
+            throw("account already voted")
+        else
+            if (isDefined(getBoolean(this, d.data[0].key))) then
+                let regConditionsMet = size(extract(getBinary(d.data, 0))) > 64
                 && addressFromPublicKey(d.proofs[0]) == addressFromString(d.data[0].key)
                 && sigVerify(d.bodyBytes, d.proofs[1], d.proofs[0])
+                regConditionsMet || throw("cannot reg account with invalid voting contitions")
             else
-                throw("account already voted")
-        else
-            false
+                throw("account not in voting list")
+
     case s:SetScriptTransaction =>
         false
     case _ =>

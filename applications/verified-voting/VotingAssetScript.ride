@@ -1,4 +1,4 @@
-let voteBankPublicKey = fromBase58String("azWhyNMQjEY9AQt2eySXXqR28NJwEbJTKy132zkVoTe")
+let voteBankPublicKey = fromBase58String("CXpiWubcdkB79QekRVaEXMVY8N12qP2f9zJp5sziGfge")
 let voteBank = addressFromPublicKey(voteBankPublicKey)
 
 match (tx) {
@@ -18,10 +18,7 @@ match (tx) {
                     && !issueTx.reissuable
                     && issueTx.quantity == t.amount
                     && issueTx.decimals == 0
-                    if (votingAssetConditionsMet) then
-                        true
-                    else
-                        throw("start voting conditions not met. Voting not registred or wrong asset")
+                    votingAssetConditionsMet || throw("start voting conditions not met. Voting not registred or wrong asset")
                 else
                 #voter should be registred using data tx to issuer address
                 #voter registration id should be equal to transfer (voting) transaction id

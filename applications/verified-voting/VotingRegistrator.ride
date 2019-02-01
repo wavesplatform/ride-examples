@@ -1,19 +1,21 @@
-let voteBank = addressFromPublicKey(fromBase58String(""))
+let voteBank = tx.sender
 let minimalVotingHeight = 100
 
 match (tx) {
     case d:DataTransaction =>
         if (size(d.data) == 2) then
             #sender should place waves-transfer txId to pay fees for voting in proof[0] of data tx
+            #sender signature in proof[1]
             let feeTransferId = transactionById(d.proofs[0])
 
             match (feeTransferId) {
                 case fT:TransferTransaction =>
-                    let votingHeight = extract(getInteger(d.data,1))
+                    let votingHeight = extract(getInteger(d.data,0))
                     !isDefined(getString(voteBank, d.data[0].key))
                     && fT.recipient == voteBank
+                    && !isDefined(fT.assetId)
                     && votingHeight > height
-                    && votingHeight - height > minimalVotingHeight
+                    && votingHeight - height >= minimalVotingHeight
 
                     #script should guaranty that user payed fees for all transfers
                     #asset should not have decimals to prevent satoshi calculation
@@ -28,21 +30,22 @@ match (tx) {
                                     case s:SetScriptTransaction =>
                                         sha256(extract(s.script)) == accountScriptHash
                                     case _ =>
-                                    throw("voting initiator not scripted, or script is wrong")
+                                        throw("voting initiator not scripted, or script is wrong")
                                 }
                                 && i.decimals == 0
                                 && fT.senderPublicKey == i.senderPublicKey
+                                && d.data[1].key == toBase58String(i.sender.bytes)
                                 && sigVerify(d.bodyBytes, d.proofs[1], fT.senderPublicKey)
                              else
                                 throw("minimum trasfer transaction amount is" + toString(i.quantity * 900000))
                         case _ =>
-                            false
+                            throw("data key at 0 index should contain voting asset id")
                     }
                 case _ =>
-                    false
+                    throw("proof at index 0 doesn't contain fee transfer transaction")
             }
         else
-            throw("data tx should contain only one key-value pair: assetId-maxVotingHeight")
+            throw("data tx should contain two key-value pairs: 0 - assetId-maxVotingHeight, 1 - ")
     case t:TransferTransaction =>
         if (isDefined(getInteger(voteBank, toBase58String(extract(t.assetId))))) then
             let h = getInteger(voteBank, toBase58String(extract(t.assetId)))
