@@ -4,7 +4,7 @@
 Any user can init a voting with answers "pros" or "cons" with verified users.
 Any voting process should be registered at Voting Registrar Account 
 
-### Voting initiator account, voting assets (VA) and Voting Registrar Account (VR) should be scripted
+#### Voting initiator account, voting assets (VA) and Voting Registrar Account (VR) should be scripted
 Scripts can guarantee:
 1. Voter selected only one choice "pros" or "cons" (send a token to one of these addresses)
 2. Vote initiator payed fee for voting procedure
@@ -24,16 +24,16 @@ Data format:
 | String    | pros     |  Address  |
 | String    | cons     |  Address  |
 
-### After applying VotingRegistrar script users can initiate votes.
+#### After applying VotingRegistrar script users can initiate votes.
 
-### Voting Initiator (VI) account sets a data with verified accounts
+#### Voting Initiator (VI) account sets a data with verified accounts
 
 Data format:
 | Type      | Key       | Value     |
-| --------- |:---------:| ---------:|
+| --------- |:---------:|:---------:|
 | Boolean   | Address   |  true     |
 
-### To register a new voting VI account should
+#### To register a new voting VI account should
 1. Script own account using VotingInitiatorSmartAccount script
 ⋅⋅* Store tx id (setScriptTxId)
 ⋅⋅* Script is standard for all VI accounts.
@@ -53,13 +53,13 @@ Transaction properties:
 ⋅⋅* proof at index 1 = signature. Tx should be signed by Voting Initiator account
 Data format:
 | Type      | Key        | Value             |
-| --------- |:----------:| -----------------:|
+| --------- |:----------:|:-----------------:|
 | Integer   | assetID    | max voting height |
 | Binary    | VI Address | setScriptTxId     |
 
 If data appllied to VR account then you can start voting process
 
-###Voting process
+### Voting process
 User should register as a voter at Voting Initiator account and send his vote from VR account
 1. To register as a voter user signs (not send) a transfer transaction and saves tx id and signature
 Transaction properties:
@@ -72,7 +72,7 @@ Transaction properties:
 ⋅⋅* proof at index 1 = signature. Tx should be signed by Voter account 
 Data format:
 | Type      | Key           | Value                        |
-| --------- |:-------------:| ----------------------------:|
+| --------- |:-------------:|:----------------------------:|
 | Binary    | Voter Address | Signature + TransferTxId     |
  Signature + TransferTxId = signature bytes should be placed first and TransferTxId bytes are concated to signature
 
