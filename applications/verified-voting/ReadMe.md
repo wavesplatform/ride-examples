@@ -29,8 +29,9 @@ Data format:
 #### Voting Initiator (VI) account sets a data with verified accounts
 
 Data format:
+
 | Type      | Key       | Value     |
-| --------- |:---------:|:---------:|
+| --------- |:---------:| ---------:|
 | Boolean   | Address   |  true     |
 
 #### To register a new voting VI account should
@@ -52,8 +53,9 @@ Transaction properties:
 ⋅⋅* proof at index 0 = feeTransferId
 ⋅⋅* proof at index 1 = signature. Tx should be signed by Voting Initiator account
 Data format:
+
 | Type      | Key        | Value             |
-| --------- |:----------:|:-----------------:|
+| --------- |:----------:| -----------------:|
 | Integer   | assetID    | max voting height |
 | Binary    | VI Address | setScriptTxId     |
 
@@ -71,9 +73,11 @@ Transaction properties:
 ⋅⋅* proof at index 0 = Voter public key
 ⋅⋅* proof at index 1 = signature. Tx should be signed by Voter account 
 Data format:
+
 | Type      | Key           | Value                        |
-| --------- |:-------------:|:----------------------------:|
+| --------- |:-------------:| ----------------------------:|
 | Binary    | Voter Address | Signature + TransferTxId     |
+
  Signature + TransferTxId = signature bytes should be placed first and TransferTxId bytes are concated to signature
 
 3. Sends signed a transfer transaction to one of the voting results address. 
