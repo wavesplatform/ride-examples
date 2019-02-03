@@ -11,7 +11,8 @@ match (tx) {
             match (feeTransferId) {
                 case fT:TransferTransaction =>
                     let votingHeight = extract(getInteger(d.data,0))
-                    (!isDefined(getInteger(voteBank, d.data[0].key)) || throw("asset already registred"))
+                    (!isDefined(getInteger(voteBank, d.data[0].key)) || throw("asset already registered"))
+                    &&(!isDefined(getBinary(voteBank, d.data[1].key)) || throw("voting already registered"))
                     && (fT.recipient == voteBank || throw("fee recipient not votebank"))
                     && !isDefined(fT.assetId)
                     && votingHeight > height
@@ -37,7 +38,7 @@ match (tx) {
                                 && i.decimals == 0
                                 && fT.senderPublicKey == i.senderPublicKey
                                 && (d.data[1].key == toBase58String(i.sender.bytes) || throw("trying to reg asset of another issuer"))
-                                && (fromBase58String(d.data[0].key) == fT.attachment || throw("fee should be paid for voting asset, put assetId to attachment")
+                                && (fromBase58String(d.data[0].key) == fT.attachment || throw("fee should be paid for voting asset, put assetId to attachment"))
                                 && (sigVerify(d.bodyBytes, d.proofs[1], fT.senderPublicKey) || throw("wrong signature"))
                              else
                                 throw("minimum trasfer transaction amount is" + toString(i.quantity * 900000))
@@ -48,7 +49,7 @@ match (tx) {
                     throw("proof at index 0 doesn't contain fee transfer transaction")
             }
         else
-            throw("data tx should contain two key-value pairs: 0 - assetId-maxVotingHeight, 1 - ")
+            throw("data tx should contain two key-value pairs: 0 - assetId-maxVotingHeight, 1 - voting initiator setScriptTx id")
     case t:TransferTransaction =>
         if (isDefined(getInteger(voteBank, toBase58String(extract(t.assetId))))) then
             let h = getInteger(voteBank, toBase58String(extract(t.assetId)))
