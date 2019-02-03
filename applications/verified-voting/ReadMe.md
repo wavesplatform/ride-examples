@@ -36,22 +36,22 @@ Data format:
 
 #### To register a new voting VI account should
 1. Script own account using VotingInitiatorSmartAccount script
-⋅⋅* Store tx id (setScriptTxId)
-⋅⋅* Script is standard for all VI accounts.
-⋅⋅* Script should not be modified as it's hash would be checked at voting registration process
+  * Store tx id (setScriptTxId)
+  * Script is standard for all VI accounts.
+  * Script should not be modified as it's hash would be checked at voting registration process
 2. Issue new asset with properties
-⋅⋅* reissuable  = false
-⋅⋅* token decimals = 0
-⋅⋅* quantity is equal to number of voters
-⋅⋅* description = voting question
+  * reissuable  = false
+  * token decimals = 0
+  * quantity is equal to number of voters
+  * description = voting question
 3. Send Waves to pay fees for all voters. Save transaction Id (feeTransferId) 
 Transaction properties:
-⋅⋅* amount = token quantity * 900_000 (where 900_000 is fee for one transfer tx - smartaccount fee + smartasset fee)
-⋅⋅* attachment = assetId 
+  * amount = token quantity * 900_000 (where 900_000 is fee for one transfer tx - smartaccount fee + smartasset fee)
+  * attachment = assetId 
 4. Sign and send DataTransaction from VR account.
 Transaction properties:
-⋅⋅* proof at index 0 = feeTransferId
-⋅⋅* proof at index 1 = signature. Tx should be signed by Voting Initiator account
+  * proof at index 0 = feeTransferId
+  * proof at index 1 = signature. Tx should be signed by Voting Initiator account
 Data format:
 
 | Type      | Key        | Value             |
@@ -65,13 +65,13 @@ If data appllied to VR account then you can start voting process
 User should register as a voter at Voting Initiator account and send his vote from VR account
 1. To register as a voter user signs (not send) a transfer transaction and saves tx id and signature
 Transaction properties:
-⋅⋅* amount = 1
-⋅⋅* fee = 900_000
-⋅⋅* attachment = voter public key
+  * amount = 1
+  * fee = 900_000
+  * attachment = voter public key
 2. Sends a data transaction from VR account:
 Transaction properties:
-⋅⋅* proof at index 0 = Voter public key
-⋅⋅* proof at index 1 = signature. Tx should be signed by Voter account 
+  * proof at index 0 = Voter public key
+  * proof at index 1 = signature. Tx should be signed by Voter account 
 Data format:
 
 | Type      | Key           | Value                        |
