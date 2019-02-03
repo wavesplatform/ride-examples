@@ -4,7 +4,6 @@ let voteBank = addressFromPublicKey(voteBankPublicKey)
 match (tx) {
     case t:TransferTransaction =>
         let issueTx = transactionById(extract(t.assetId))
-
         match (issueTx){
             case issueTx:IssueTransaction =>
                 #asset can be transfered to voteReg account if vote registred in data: key - assetID, value - max voting height
@@ -13,36 +12,36 @@ match (tx) {
                 #all issued tokens should be transfered to voteReg account
                 let regAssetForVoting =  getInteger(voteBank, toBase58String(issueTx.id))
                 if (t.sender == issueTx.sender) then
-                    let votingAssetConditionsMet = isDefined(regAssetForVoting)
-                    && t.recipient == voteBank
-                    && !issueTx.reissuable
-                    && issueTx.quantity == t.amount
-                    && issueTx.decimals == 0
-                    votingAssetConditionsMet || throw("start voting conditions not met. Voting not registred or wrong asset")
+                   (t.recipient == voteBank || throw("token recipient is not vote registrator acc"))
+                   &&(isDefined(regAssetForVoting) || throw("asset should be registed before transfer"))
+                   && (!issueTx.reissuable || throw("token should not be reissuable"))
+                   && (issueTx.quantity == t.amount || throw("all issued quantity should be transfered to registrator"))
+                   && issueTx.decimals == 0
                 else
                 #voter should be registred using data tx to issuer address
                 #voter registration id should be equal to transfer (voting) transaction id
                 #if reg number exists in blockchain, then voter already voted
-
-                    let voterPublicKey = take(t.attachment, 32)
+                    let voterPublicKey = t.attachment
                     let voterAddress = addressFromPublicKey(voterPublicKey)
                     let voterRegId = getBinary(issueTx.sender, toBase58String(voterAddress.bytes))
                     if (isDefined(voterRegId)) then
                         let voterSignature = take(extract(voterRegId), 64)
                         let voterTxId = drop(extract(voterRegId), 64)
-                        t.senderPublicKey == voteBankPublicKey
-                        && t.id == voterTxId
-                        && t.amount == 1
-                        && t.fee < 10000000
-                        && !isDefined(transactionById(voterTxId))
-                        && sigVerify(t.bodyBytes, voterSignature, voterPublicKey)
+                        if (t.id == voterTxId) then
+                            t.senderPublicKey == voteBankPublicKey
+                            && (t.amount == 1 || throw("only one voice allowed"))
+                            && t.fee == 900000
+                            && (!isDefined(transactionById(voterTxId)) || throw("voter already voted"))
+                            && (sigVerify(t.bodyBytes, voterSignature, voterPublicKey) || throw("wrong signature"))
+                        else
+                            throw("wrong tx id registred")
                     else
-                        false
+                        throw("voter not registred")
             case _ =>
                 false
         }
     case x:SetAssetScriptTransaction =>
-        true
+        throw("token script cannot be modified")
     case _ =>
         false
 }

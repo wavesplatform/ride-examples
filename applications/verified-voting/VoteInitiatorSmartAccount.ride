@@ -11,13 +11,11 @@ match (tx) {
             throw("account already voted")
         else
             if (isDefined(getBoolean(this, d.data[0].key))) then
-                let regConditionsMet = size(extract(getBinary(d.data, 0))) > 64
-                && addressFromPublicKey(d.proofs[0]) == addressFromString(d.data[0].key)
-                && sigVerify(d.bodyBytes, d.proofs[1], d.proofs[0])
-                regConditionsMet || throw("cannot reg account with invalid voting contitions")
+                (size(extract(getBinary(d.data, 0))) > 64  || throw("data not includes signature value"))
+                && (addressFromPublicKey(d.proofs[0]) == addressFromString(d.data[0].key) || throw("proof at idx 0 should contain voter public key"))
+                && (sigVerify(d.bodyBytes, d.proofs[1], d.proofs[0]) || throw("invalid tx signature"))
             else
                 throw("account not in voting list")
-
     case s:SetScriptTransaction =>
         false
     case _ =>

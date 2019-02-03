@@ -11,11 +11,11 @@ match (tx) {
             match (feeTransferId) {
                 case fT:TransferTransaction =>
                     let votingHeight = extract(getInteger(d.data,0))
-                    !isDefined(getString(voteBank, d.data[0].key))
-                    && fT.recipient == voteBank
+                    (!isDefined(getInteger(voteBank, d.data[0].key)) || throw("asset already registred"))
+                    && (fT.recipient == voteBank || throw("fee recipient not votebank"))
                     && !isDefined(fT.assetId)
                     && votingHeight > height
-                    && votingHeight - height >= minimalVotingHeight
+                    && (votingHeight - height >= minimalVotingHeight || throw("voting interval should be more than 100 blocks"))
 
                     #script should guaranty that user payed fees for all transfers
                     #asset should not have decimals to prevent satoshi calculation
@@ -26,16 +26,19 @@ match (tx) {
                             let scriptTx = transactionById(accountScriptedProof)
 
                             if (fT.amount >= i.quantity * 900000) then
+                                #voting initiator account should be scripted
                                 match (scriptTx){
                                     case s:SetScriptTransaction =>
-                                        sha256(extract(s.script)) == accountScriptHash
+                                        ((sha256(extract(s.script)) == accountScriptHash)
+                                        || throw("script hash not fit requirements"))
                                     case _ =>
                                         throw("voting initiator not scripted, or script is wrong")
                                 }
                                 && i.decimals == 0
                                 && fT.senderPublicKey == i.senderPublicKey
-                                && d.data[1].key == toBase58String(i.sender.bytes)
-                                && sigVerify(d.bodyBytes, d.proofs[1], fT.senderPublicKey)
+                                && (d.data[1].key == toBase58String(i.sender.bytes) || throw("trying to reg asset of another issuer"))
+                                && (fromBase58String(d.data[0].key) == fT.attachment || throw("fee should be paid for voting asset, put assetId to attachment")
+                                && (sigVerify(d.bodyBytes, d.proofs[1], fT.senderPublicKey) || throw("wrong signature"))
                              else
                                 throw("minimum trasfer transaction amount is" + toString(i.quantity * 900000))
                         case _ =>
@@ -49,7 +52,7 @@ match (tx) {
     case t:TransferTransaction =>
         if (isDefined(getInteger(voteBank, toBase58String(extract(t.assetId))))) then
             let h = getInteger(voteBank, toBase58String(extract(t.assetId)))
-            (extract(h) <= height)
+            (extract(h) > height)
                 && (addressFromRecipient(t.recipient) == addressFromString(extract(getString(voteBank, "pros")))
                 || addressFromRecipient(t.recipient) == addressFromString(extract(getString(voteBank, "cons"))))
                 && isDefined(getString(voteBank, "pros"))
