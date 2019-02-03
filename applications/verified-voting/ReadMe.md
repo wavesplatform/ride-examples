@@ -24,6 +24,7 @@ Data format:
 | --------- |:--------:| ---------:|
 | String    | pros     |  Address  |
 | String    | cons     |  Address  |
+| Binary| IssuerAccountScriptHash | H6pkCiqWzuHwQ1ktmusj9bNy5wsh3kvwdZx1Ch4NfoLi | 
 
 #### After applying VotingRegistrar script users can initiate votes.
 
