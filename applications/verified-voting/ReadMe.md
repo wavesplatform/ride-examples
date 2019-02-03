@@ -7,9 +7,10 @@ Any voting process should be registered at Voting Registrar Account
 #### Voting initiator account, voting assets (VA) and Voting Registrar Account (VR) should be scripted
 Scripts can guarantee:
 1. Voter selected only one choice "pros" or "cons" (send a token to one of these addresses)
-2. Vote initiator payed fee for voting procedure
-3. Voting finished at max voting height
-4. Minimal voting interval is 100 blocks
+2. Voter can take part in voting only once
+3. Vote initiator payed fee for voting procedure
+5. Voting finished at max voting height
+6. Minimal voting interval is 100 blocks
   
   
 ## Script and voting details
