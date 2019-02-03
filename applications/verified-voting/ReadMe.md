@@ -61,7 +61,9 @@ Data format:
 | Integer   | assetID    | max voting height |
 | Binary    | VI Address | setScriptTxId     |
 
-If data appllied to VR account then you can start voting process
+5.  If data appllied to VR account, send all issued token (amount = quantity) to VR account
+
+Now you can start voting.
 
 ### Voting process
 User should register as a voter at Voting Initiator account and send his vote from VR account
