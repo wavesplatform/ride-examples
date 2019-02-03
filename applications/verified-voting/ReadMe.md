@@ -2,17 +2,17 @@
 
 
 Any user can init a voting with answers "pros" or "cons" with verified users.
-
 Any voting process should be registered at Voting Registrar Account 
 
-Voting initiator account, voting assets (VA) and Voting Registrar Account (VR) should be scripted
+### Voting initiator account, voting assets (VA) and Voting Registrar Account (VR) should be scripted
 Scripts can guarantee:
 1. Voter selected only one choice "pros" or "cons" (send a token to one of these addresses)
 2. Vote initiator payed fee for voting procedure
-3. VRA account checks max voting height
+3. Voting finished at max voting height
+4. Minimal voting interval is 100 blocks
   
   
-##Script and voting details
+## Script and voting details
 
 Voting Registrar Account should contain script that checks new voting registration process and users' voting
 Before setting script to VR account data with addresses for voting answers should be created
@@ -24,16 +24,16 @@ Data format:
 | String    | pros     |  Address  |
 | String    | cons     |  Address  |
 
-###After applying VotingRegistrar script users can initiate votes.
+### After applying VotingRegistrar script users can initiate votes.
 
-###Voting Initiator (VI) account sets a data with verified accounts
+### Voting Initiator (VI) account sets a data with verified accounts
 
 Data format:
 | Type      | Key       | Value     |
 | --------- |:---------:| ---------:|
 | Boolean   | Address   |  true     |
 
-###To register a new voting VI account should
+### To register a new voting VI account should
 1. Script own account using VotingInitiatorSmartAccount script
 ⋅⋅* Store tx id (setScriptTxId)
 ⋅⋅* Script is standard for all VI accounts.
