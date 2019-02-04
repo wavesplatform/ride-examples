@@ -7,6 +7,7 @@ This repository is open for contribution and we welcome all pull requests. At th
 Examples of well documented scripts:
 - [HotPotatoToken](/smart-assets/HotPotatoToken.ride)
 - [Taxation](/smart-assets/Taxation.ride)
+- [VerifiedTrading](/smart-assets/VerifiedTrading.ride)
 
 
 **Note:** There are two folders with scripts for accounts and assets, please add your script to proper directories.
@@ -14,4 +15,3 @@ Examples of well documented scripts:
 
 ## Discussions
 You are welcome to discuss scripts in this repository with issues, but consider that everybody can contribute to the repo, but not obliged to respond to opened issues.
-    

@@ -1,0 +1,27 @@
+# Set Smart asset to trade only with BetterTokens verified assets and Waves.
+#
+# BetterTokens Oracle address.
+let addr = Address(base58'3P6t5mKGwVDkyjFhtUqw4NnecyC3DRpLfkw')
+
+match (tx) {
+    case e:ExchangeTransaction => 
+        # Determine if Smart asset is paired with Waves.
+        let withWaves = (!isDefined(e.sellOrder.assetPair.priceAsset) || !isDefined(e.sellOrder.assetPair.amountAsset))
+
+        if(withWaves == false) then {
+            # If paired with another token, check BetterToken status.
+            #
+            # We cannot determine if Smart asset is amount or price asset in the pair
+            # that is why we check in both places.
+            let priceAssetKey = "status_<" + toBase58String(extract(e.sellOrder.assetPair.priceAsset)) + ">"
+            let priceAssetInOracle = (getInteger(addr, priceAssetKey) == 2)
+
+            let amountAssetKey = "status_<" + toBase58String(extract(e.sellOrder.assetPair.amountAsset)) + ">"
+            let amountAssetInOracle = (getInteger(addr, priceAssetKey) == 2)
+            
+            priceAssetInOracle || amountAssetInOracle
+        } else {
+            true
+        }
+    case _ => true
+}
