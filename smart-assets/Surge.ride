@@ -1,0 +1,33 @@
+# Surge is a Smart Asset.
+# It's price is increased every day: it is at least 0.001 * (1 + days * days) WAVES.
+# DEX orders should have expiration less than 100 minutes.
+
+let startHeight = 1375557
+let startPrice = 100000
+let interval = 24 * 60
+let exp = 100 * 60 * 1000
+match tx {
+  case e:ExchangeTransaction =>
+    let days = (height - startHeight) / interval
+    if (
+      if (
+        if (
+          e.price >= startPrice * (1 + days * days)
+        )
+        then
+          !isDefined(e.sellOrder.assetPair.priceAsset)
+        else
+          false
+      )
+      then
+        exp >= e.sellOrder.expiration - e.sellOrder.timestamp
+      else
+        false
+    )
+    then
+      exp >= e.buyOrder.expiration - e.buyOrder.timestamp
+    else
+      false
+  case tx:BurnTransaction => true
+  case _ => false
+}
