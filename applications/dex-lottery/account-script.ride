@@ -1,0 +1,33 @@
+# Lottery Account contract
+
+# Lottery account pubKey
+let lotto = extract(tx.senderPublicKey)
+
+# LotteryTicket asset
+let lottoTicket = base58'HRKmotB2QJo2j9RpY7CRwciKvp7QSwPMwvzTKo4yVmej'
+
+# Signature check for other TXs
+let txSig = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+
+match (tx) {
+  case o:Order =>
+    # If price asset is Waves and Asset is LottoTicket then proceed with lottery
+    if(!isDefined(o.assetPair.priceAsset) && o.assetPair.amountAsset  == lottoTicket) then {
+      # Match if price is 1 wavelet (Price is 100000000 because Asset decimals == 0)
+      # to take back lottery ticket
+      # if not check "Randomizer 0.1" results
+      if(o.price == 100000000) then {
+        txSig
+      } else {
+        # Randomizer 0.1
+        # Get first byte from Matcher proof, convert to Base58 string and compare to lucky ones
+        let randomByte = take(tx.proofs[0], 1)
+        let rbs = toBase58String(randomByte)
+        # List of lucky bytes from 0 to 120 as Base58 strings
+        (rbs == "1" || rbs == "2" || rbs == "3" || rbs == "4" || rbs == "5" || rbs == "6" || rbs == "7" || rbs == "8" || rbs == "9" || rbs == "A" || rbs == "B" || rbs == "C" || rbs == "D" || rbs == "E" || rbs == "F" || rbs == "G" || rbs == "H" || rbs == "J" || rbs == "K" || rbs == "L" || rbs == "M" || rbs == "N" || rbs == "P" || rbs == "Q" || rbs == "R" || rbs == "S" || rbs == "T" || rbs == "U" || rbs == "V" || rbs == "W" || rbs == "X" || rbs == "Y" || rbs == "Z" || rbs == "a" || rbs == "b" || rbs == "c" || rbs == "d" || rbs == "e" || rbs == "f" || rbs == "g" || rbs == "h" || rbs == "i" || rbs == "j" || rbs == "k" || rbs == "m" || rbs == "n" || rbs == "o" || rbs == "p" || rbs == "q" || rbs == "r" || rbs == "s" || rbs == "t" || rbs == "u" || rbs == "v" || rbs == "w" || rbs == "x" || rbs == "y" || rbs == "z" || rbs == "21" || rbs == "22" || rbs == "23" || rbs == "24" || rbs == "25" || rbs == "26" || rbs == "27" || rbs == "28" || rbs == "29" || rbs == "2A" || rbs == "2B" || rbs == "2C" || rbs == "2D" || rbs == "2E" || rbs == "2F" || rbs == "2G" || rbs == "2H" || rbs == "2J" || rbs == "2K" || rbs == "2L" || rbs == "2M" || rbs == "2N" || rbs == "2P" || rbs == "2Q" || rbs == "2R" || rbs == "2S" || rbs == "2T" || rbs == "2U" || rbs == "2V" || rbs == "2W" || rbs == "2X" || rbs == "2Y" || rbs == "2Z" || rbs == "2a" || rbs == "2b" || rbs == "2c" || rbs == "2d" || rbs == "2e" || rbs == "2f" || rbs == "2g" || rbs == "2h" || rbs == "2i" || rbs == "2j" || rbs == "2k" || rbs == "2m" || rbs == "2n" || rbs == "2o" || rbs == "2p" || rbs == "2q" || rbs == "2r" || rbs == "2s" || rbs == "2t" || rbs == "2u" || rbs == "2v" || rbs == "2w" || rbs == "2x" || rbs == "2y" || rbs == "2z" || rbs == "31" || rbs == "32" || rbs == "33" || rbs == "34" || rbs == "35")
+      }
+    } else {
+      txSig
+    }
+  case _ => txSig
+}
