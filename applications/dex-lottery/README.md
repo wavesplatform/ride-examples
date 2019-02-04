@@ -10,7 +10,7 @@ The Lottery is played with Waves pair and "tickets" can be sold at any other pai
 
 ### Setting up
 
-1. Issue smart asset with script
+1. Issue smart asset with script (decimals = 0)
 2. Set Data TX with boolean `isOpen` at `false`
 3. Place buy order for 1 wavelet at `Asset/WAVES` pair
 4. Place buy order for winning price at `Asset/WAVES` pair
