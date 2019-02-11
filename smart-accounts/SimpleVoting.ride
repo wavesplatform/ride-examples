@@ -1,0 +1,66 @@
+#sponsored voting with minimal fee
+
+let voteBank = addressFromPublicKey(fromBase58String("azWhyNMQjEY9AQt2eySXXqR28NJwEbJTKy132zkVoTe"))
+let minimalVotingHeight = 100
+
+match (tx) {
+    case d:DataTransaction =>
+        if (size(d.data) == 3) then
+            let feeTransferId = transactionById(d.proofs[0]) #to guarantee that voting fee paid
+            let assetTranserId = transactionById(d.proofs[1]) #assest for voting transfered
+
+            match (assetTranserId){
+                case aT:TransferTransaction =>
+                    match (feeTransferId) {
+                        case fT:TransferTransaction =>
+                            let votingHeight = d.data[1].value
+                            !isDefined(getString(voteBank, d.data[0].key))
+                            && isDefined(getString(aT.sender, "pros"))
+                            &&isDefined(getString(aT.sender, "cons"))
+                            && aT.recipient == voteBank
+                            && fT.recipient == voteBank
+                            && fT.amount >= aT.amount * 500000
+                            #data transaction should contain hash of voting question
+                            && d.data[0].key == toBase58String(sha256(aT.attachment))
+                            && d.data[0].key == toBase58String(sha256(fT.attachment))
+                            && d.data[1].key == toBase58String(sha256(fT.attachment))+ "_height"
+                            && d.data[2].key == toBase58String(sha256(fT.attachment)) + "_asset"
+                            && match (votingHeight) {
+                                case h:Int =>
+                                    h > height && (h - height) > minimalVotingHeight
+                                case _ =>
+                                    false
+                              }
+                            && d.data[2].value ==  aT.assetId
+                            && sigVerify(d.bodyBytes, d.proofs[3], d.proofs[2])
+                        case _ =>
+                            false
+            }
+            case _ =>
+                false
+        }
+        else
+            false
+    case t:TransferTransaction =>
+        let voteSecret = toBase58String(sha256(t.attachment))
+        let voterAddress = addressFromPublicKey(t.proofs[0])
+
+        #voting question should be registred before starting voting process
+        if isDefined(getString(voteBank, voteSecret)) then
+            let voteStarter = extract(addressFromString(extract(getString(voteBank, voteSecret))))
+            height < extract(getInteger(voteBank, voteSecret+"_height"))
+
+            #only addresses pros/cons are allowed
+            && (addressFromRecipient(t.recipient)  == addressFromString(extract(getString(voteStarter, "pros")))
+                || addressFromRecipient(t.recipient)  == addressFromString(extract(getString(voteStarter, "cons")))
+            )
+            && (t.assetId == extract(getBinary(voteBank, voteSecret + "_asset")) || throw("wrong asset for current voting question"))
+            && (t.amount == 1 || throw("you can vote using only one token"))
+            && t.fee == 500000
+            && (wavesBalance(voterAddress) > 100000000 || throw("you have not enough waves"))
+            && sigVerify(t.bodyBytes, t.proofs[1], t.proofs[0])
+        else
+            throw("voting conditions not met")
+    case _ =>
+        false
+  }
