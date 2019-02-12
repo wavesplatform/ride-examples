@@ -1,0 +1,19 @@
+# This is a medal token.
+#
+# Medals are awarded to people using Transfer or MassTransfer. The issuer
+# can mint new medals or burn unused ones. The medal asset should have
+# zero decimals.
+#
+# A person who's awarded a medal can not transfer nor sell it,
+# but can give it back to the issuer.
+#
+
+let master = addressFromString("3masterAddress")
+match tx {
+    case t: TransferTransaction =>
+        t.sender == master || t.recipient == master
+    case mt: MassTransferTransaction =>
+        mt.sender == master
+    case ex: ExchangeTransaction => false
+    case _ => true
+}
