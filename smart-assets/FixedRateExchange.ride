@@ -1,0 +1,18 @@
+# This token can be bought/sold for WAVES only at a rate published by
+# asset issuer.
+#
+# The issuer publishes the exchange rate with a data transaction on his
+# account. The actual exchange rate must match the published rate up to
+# 7th significant digit.
+#
+
+let issuer = Address(base58'3issuerAddress')
+let assetId = base58'ThisAsset1d'
+match tx {
+    case ex: ExchangeTransaction =>
+        let pair = AssetPair(assetId, unit)
+        let rate = extract(getInteger(issuer, "exchangeRate"))
+        let rateDiff = rate - fraction(100000000, ex.price, ex.amount)
+        ex.buyOrder.assetPair == pair && rateDiff > -100 && rateDiff < 100
+    case _ => true
+}
