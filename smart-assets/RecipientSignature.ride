@@ -1,0 +1,45 @@
+
+# General idea of this token is to allow transfer only with recipient's permisson. 
+# Token ownership can be used as a proof of physycal object ownership and token transfer as a proof of 'real world' object transfer.
+
+# To use this token:
+# 1. Sender creates tx without proof and sends it to recipient
+# 2. Recipient calculates signature, adds his public key and signature to attachment field. Sends tx back to sender.
+# 3. Sender signs tx with attachment. Tx can now be sent to blockchain
+
+# Set network byte. 87 for mainnet
+let NETWORKBYTE = takeRight(toBytes(87), 1)
+
+match (tx) {
+    # Only allow transfer transactions
+    case t:TransferTransaction => {
+        # Since smart assets don't have access to proofs, attachment is used, but attachment is also signed.
+        # For that reason we will verify signature against tx without attachment
+        let txWithoutAttachment = dropRight(t.bodyBytes, 97) + takeRight(toBytes(0), 1)
+
+        # Attachment contains recipient public key and signature
+        let recipientPublicKeyAndSignature = t.attachment
+        let recipientPublicKey = take(recipientPublicKeyAndSignature, 32)
+        let recipientSignature = takeRight(recipientPublicKeyAndSignature, 64)
+
+        # Get recipient address from public key in attachment
+        let recipientPublicKeyHash = take(keccak256(blake2b256(recipientPublicKey)), 20)
+        let rpkWithVersionAndByte = takeRight(toBytes(1), 1) + NETWORKBYTE + recipientPublicKeyHash
+        let checksum = take(keccak256(blake2b256(rpkWithVersionAndByte)), 4)
+        let recipientAddressFromPublicKey = rpkWithVersionAndByte + checksum
+        let recipientAddressFromTx = addressFromRecipient(t.recipient).bytes
+        
+        # Verify that tx.recipient equals recipient from attsachment
+        if (recipientAddressFromPublicKey != recipientAddressFromTx) then throw(
+            "Recipient address error:" + toBase58String(recipientAddressFromPublicKey)
+            ) else {
+        # Verify recipient signature
+        if (!sigVerify(txWithoutAttachment, recipientSignature, recipientPublicKey))  then  throw(
+            "Invaid recipient signature:" + toBase58String(recipientSignature) + "\n BodyBytes:" + toBase64String(txWithoutAttachment)
+            ) else {
+            true
+        }}
+    }
+    # No exchange or masstransfer
+    case _ => false
+  }
