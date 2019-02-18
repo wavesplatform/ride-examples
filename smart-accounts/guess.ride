@@ -1,0 +1,21 @@
+# in the state of this account, there are two fields  
+# "question" - with some question and 
+# "hashed answer" - with an answer to this question 
+# which is hashed by keccak256 algorithm user can send 
+# any number of WAVES from this account if he/she has 
+# a correct answer in an attachment of TransferTransaction  
+
+let this=extract(tx.sender)
+
+match(tx)
+{
+    case t : TransferTransaction =>
+        let correctAnswer = extract(getBinary(this, "hashed answer"))
+        let answer = keccak256(t.attachment)
+
+        correctAnswer == answer 
+        && !isDefined(t.assetId)
+    case s: SetScriptTransaction | DataTransaction =>
+        sigVerify(s.bodyBytes, s.proofs[0], s.senderPublicKey)
+    case _ => false
+}
