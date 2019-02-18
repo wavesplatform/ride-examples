@@ -1,0 +1,14 @@
+# this asset can be burned only at 11:11 am 
+# also it can be sent by anyone or reissued/changed by the issuer
+
+let startTime = (11 + 3) * 60 * 60 + 11 * 60
+let endTime = (11 + 3) * 60 * 60 + 12 * 60
+
+match (tx) {
+    case b:BurnTransaction => {
+        let transactionSecondsOfTheDay = (b.timestamp / 1000) % (3600 * 24)
+        transactionSecondsOfTheDay >= startTime && transactionSecondsOfTheDay < endTime
+    } 
+    case t:TransferTransaction | MassTransferTransaction | ReissueTransaction | SetAssetScriptTransaction => true 
+    case _ => false
+}
