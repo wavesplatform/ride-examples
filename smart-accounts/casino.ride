@@ -1,0 +1,282 @@
+# If you want to test it on TestNet
+# You will need Keeper (Don't forget TO SWITCH IT TO TESTNET MODE!)
+# go http://185.43.6.227:8000
+# and Play
+#
+#
+# This is an account script of a roulette in a casino
+# Results of games are put into the blockchain by the Oracle periodically (every 5 minutes).
+# Oracle posts its messages to separate account 
+#
+# How to make bet
+# 
+# To participate you need to Transfer Waves to this account - make Payment and register the bet 
+#
+# 1. Payment
+#    Just send money to the casino's account
+#	 One payment - one bet. Minimal bet amount = 0.5.
+#    Bet registration fee (see next paragraph) is substracted from your payment.
+# 2. Register payment as the bet
+#    You need to register the bet for the game round. Choose round by it's timestamp (happens every 5 minutes). 
+#    To register you need send DataTransaction from the script account signed by Payment sender and containing the following data:
+#    (<payment_id>, guess), (<payment_id>_round, timestamp_of_the_round)
+# 	 timestamp_of_the_round - in UTF8 encoding in bytes(13 bytes)
+#    Guess is a ByteArray in the following format:
+#     type of bet (1 byte), guess (1 byte)
+#     Bet type could be one of the following (in braces possible 'guess' values are defined):
+#     0 - number (number)
+#     1 - red (0) or black (1)
+#     2 - even (0) or odd (1)
+#     3 - 1st half of the desk (0) and 2nd half (1)
+#     4 - 1st third of the desk (0), 2nd third (1), 3rd third (2)
+#     5 - 1st row of the desk (0), 2nd row (1), 3rd row (2)
+#
+# How to get your prise in case you win 
+#
+# In case you guess right you can get more money then your bet (see koeff variable in the code).
+# Formula is: (paymentTx.amount - registerBetTxFee) * koeff - dataTxsFees - withdrawTx.fee
+#
+# You win the round defined by your Bet Registration in case the Oracle
+# put equal value to the round's data. Oracle puts DataTransaction where
+#  - the key is the timestamp of the round in UTF8 format converted to ByteArray
+#  - value is ByteArray containing
+#    1) version (1 byte)
+#	 2) wining value for bet of type0 - number (1 byte)
+#	 3) wining value for bet of type1 - red/black (1 byte)
+#	 4) wining value for bet of type2 - even/odd (1 byte)
+#	 5) wining value for bet of type3 - halfs of the desk (1 byte)
+#	 6) wining value for bet of type4 - thirds of the desk (1 byte)
+#	 7) wining value for bet of type5 - rows of the desk (1 byte)
+#
+# You can also get your money back if you just sent Payment, but didn't register it as a bet.
+# In this case you need to do the same as described below, but amount would be the following:
+# paymentTx.amount - dataTxsFees - withdrawTx.fee 
+#
+# To get money you need to do the following:
+# 1. Create withdraw - Transfer transaction. Amount of money must be calculated according to type of your bet
+#    and concider fees - fee of withdraw transaction and fees of data transactions (see 2.)
+#    Withdraw transaction must:
+#	 1) be originated from the Casino account (sender - is the Casino account public key)
+#    2) be signed by Payment sender
+#	 3) contain Payment transaction id in the second proof.
+#    Don't send withdraw yet, just remember it's id (<withdraw_id>). 
+#	 You will send it on step 3, after the DataTransaction. 
+# 2. Create and send DataTransaction. This DataTransaction links your Payment to the Withdraw.
+#    Because of this DataTransaction you only able to get money once per payment which won. 
+#	 In case you sent DataTransaction but lost your Withdraw transaction (e.g. it is expired),
+#    you can provide another DataTransaction with new link of Payment to Withdraw.
+#    Since DataTransactions are made from the name of the Casino account fees 
+#	 will be substracted from your prise.
+#	 DataTransaction must: 
+#    1) be originated from the Casino account (sender - is the Casino account public key)
+#    2) be signed by Payment sender
+#    3) contain the following (key, value) pairs:
+#    (<payment_id>_withdraw, <withdraw_id>), (<payment_id>_withdraw_fees, sum_ammount_of_data_txs_fees)
+#	 sum_ammount_of_data_txs_fees - is sum of fees of all DataTransactions for this payment.
+# 3. When DataTransaction is in the blockchain send Withdraw created on step 1.
+#
+# Donation 
+# if you find this script useful, you can donate
+# Waves address: 3P5VCmMc7fqqJijHaS3yB8jCwq7rgmLpszx
+
+
+let me = tx.sender
+let oracle = extract(addressFromString("3NCzaYTNDGtR8zf9yfcqePFjCqFx9S5zhs4"))
+let minWithdrawFee = 500000
+let registerBetTxFee = 500000
+
+match(tx) {
+	case withdrawTx: TransferTransaction =>
+		# proofs[0] contains signiture by payment sender
+		# proofs[1] contains payment Tx id
+		let txId = extract(getString(me, toBase58String(tx.proofs[1]) + "_withdraw"))
+		match(transactionById(tx.proofs[1])) {
+			case paymentTx: TransferTransaction =>
+			   let isPaymentTookPlace = txId == toBase58String(tx.id) && sigVerify(tx.bodyBytes, tx.proofs[0], paymentTx.senderPublicKey)
+
+				let feesKey = toBase58String(tx.proofs[1]) + "_withdraw_fees"
+				let dataTxsFees = extract(getInteger(me, feesKey))
+
+				let guessUnit = getBinary(me, toBase58String(tx.proofs[1]))
+				
+				let correctAmount = if (!isDefined(guessUnit)) then
+				{
+					# return back payment
+					paymentTx.amount - dataTxsFees - withdrawTx.fee
+				}
+				else
+				{
+					# get win prise
+					let guess = extract(guessUnit)
+
+					let type = take(guess, 1)
+					let val = drop(guess, 1)
+					let key = extract(getString(me, toBase58String(tx.proofs[1]) + "_round"))
+
+					let valComplex = extract(getBinary(oracle, key))
+
+					let koeff =
+						if (type == drop(toBytes(0), 7)) then 36
+						else if (type == drop(toBytes(1), 7)) then 2
+						else if (type == drop(toBytes(2), 7)) then 2
+						else if (type == drop(toBytes(3), 7)) then 2
+						else if (type == drop(toBytes(4), 7)) then 3
+						else if (type == drop(toBytes(5), 7)) then 3
+						else 0
+
+					(paymentTx.amount - registerBetTxFee) * koeff - dataTxsFees - withdrawTx.fee
+				}
+				
+				(isPaymentTookPlace || throw("There was no bet")) 
+				&& 
+				((withdrawTx.amount == correctAmount) || throw("Amount is incorrect. Correct amount is " + toString(correctAmount))) 
+				&& 
+				((!isDefined(withdrawTx.feeAssetId) && !isDefined(withdrawTx.assetId)) 
+				|| throw("Withdraw and fee must be in WAVES"))
+
+			case _ => false
+		}
+
+	case dtx: DataTransaction =>
+
+		if (size(dtx.data) == 3) then
+		{
+			# Data Tx for BET REGISTRATION
+						
+			let minBet = 	  50000000
+			let maxSumBet = 1000000000 # max sum bet for round
+			
+			let paymentTxIdStr = extract(dtx.data[0].key)
+			
+			let guessStr = extract(getString(dtx.data, paymentTxIdStr))
+			let paymentRoundKey = paymentTxIdStr + "_round"
+			let paymentRound = extract(getString(dtx.data, paymentRoundKey))
+			
+			let sumBetsOld = if isDefined(getInteger(me, paymentRound + "_betsSum")) 
+								then extract(getInteger(me, paymentRound + "_betsSum")) 
+								else 0
+			let sumBetsNew = extract(getInteger(dtx.data, paymentRound + "_betsSum"))
+
+			let itsTooLate = isDefined(getString(me, paymentRound + "_stop"))
+			
+			let isPaymentAlreadyMentioned = isDefined(getString(me, paymentTxIdStr))
+
+			let paymentTx = transactionById(fromBase58String(paymentTxIdStr))
+			match (paymentTx) {
+				case paymentTx : TransferTransaction =>
+					# data-transaction must be signed by payment sender
+					let isDtxSignedByPayer = sigVerify(dtx.bodyBytes, dtx.proofs[0], paymentTx.senderPublicKey)
+
+					let correctSumBets = sumBetsOld + paymentTx.amount - dtx.fee # data tx fee is payed by Payment sender from its bet
+
+					(addressFromRecipient(paymentTx.recipient) == me || throw("Incorrect recipient of the payment"))
+					&&
+					(!isPaymentAlreadyMentioned || throw("This transfer is already used as a bet")) 
+					&& 
+					((sumBetsNew == correctSumBets)
+					|| throw("Wrong value for Sum of Bets. Must be " + toString(correctSumBets)))
+					&&
+					((sumBetsNew < maxSumBet) 
+					|| throw("Maximum amount of bets for round " + toString(maxSumBet) + ". With your bet it's " + toString(sumBetsNew)))
+					&&
+					((dtx.fee == registerBetTxFee) 
+					|| throw("Fee of bet registration data transaction must be " + toString(registerBetTxFee)))
+					&&
+					((paymentTx.amount - registerBetTxFee >= minBet) || throw("Your Bet amount is less then minimal bet " + toString(minBet) + ". Payment amount for such bet must be " + toString(minBet+registerBetTxFee)))
+					&& 
+					((!isDefined(paymentTx.feeAssetId) || throw("Paymnet must be in WAVES")))
+					&& 
+					(!itsTooLate || throw("It's too late to play this round. Try next one"))
+
+					 
+
+				case _ => false
+			}		
+		}
+		else if (size(dtx.data) == 2) then
+		{
+			# Data Tx for WITHDRAW registration
+
+			# payment transaction in the first key-value.
+			# Data tx must be signed by payment sender
+
+			let isDataCountOk = size(dtx.data) == 2
+
+			let paymentTxIdStr = dropRight(extract(dtx.data[0].key), 9) # drop "_withdraw"
+			let feesKey = paymentTxIdStr + "_withdraw_fees"
+			let paymentTx = transactionById(fromBase58String(paymentTxIdStr))
+			let newFees = extract(getInteger(dtx.data, feesKey))
+			let oldFeesUnit = getInteger(me, feesKey)
+			let oldFees = if isDefined(oldFeesUnit)
+							then extract(oldFeesUnit)
+							else 0
+
+			let isFeeCorrect = newFees == oldFees + dtx.fee
+
+			#if payment already mentioned in the State, the corresponding withdraw tx must not exist
+			
+			let withdrawTxIdUnit = getString(me, paymentTxIdStr)
+			let isPaymentAlreadyMentioned = isDefined(withdrawTxIdUnit)
+
+			let withdrawTransactionId = fromBase58String(extract(withdrawTxIdUnit))
+
+			match (paymentTx) {
+				case paymentTx : TransferTransaction =>
+					# data-transaction must be signed by payment sender
+					let isDtxSignedByPayer = sigVerify(dtx.bodyBytes, dtx.proofs[0], paymentTx.senderPublicKey)
+
+					#if payment correct
+					if (addressFromRecipient(paymentTx.recipient) == me
+						&&
+						(!isPaymentAlreadyMentioned || !isDefined(transactionById(withdrawTransactionId)) ) 
+						&&
+						isDtxSignedByPayer
+						&&
+						isFeeCorrect
+						&&
+						isDataCountOk) 
+					then
+						let guess = extract(getBinary(me, paymentTxIdStr))
+
+						let type = take(guess, 1)
+						let key = extract(getString(me, paymentTxIdStr + "_round"))
+
+						let valComplex = extract(getBinary(oracle, key))
+						
+						let koeff = 
+							if  	(type == drop(toBytes(0), 7)) then 36
+							else if (type == drop(toBytes(1), 7)) then 2
+							else if (type == drop(toBytes(2), 7)) then 2
+							else if (type == drop(toBytes(3), 7)) then 2
+							else if (type == drop(toBytes(4), 7)) then 3
+							else if (type == drop(toBytes(5), 7)) then 3
+							else 0
+						
+						let valReal = 
+							if  	(type == drop(toBytes(0), 7)) then drop(take(valComplex, 2), 1)
+							else if (type == drop(toBytes(1), 7)) then drop(take(valComplex, 3), 2)
+							else if (type == drop(toBytes(2), 7)) then drop(take(valComplex, 4), 3)
+							else if (type == drop(toBytes(3), 7)) then drop(take(valComplex, 5), 4)
+							else if (type == drop(toBytes(4), 7)) then drop(take(valComplex, 6), 5)
+							else if (type == drop(toBytes(5), 7)) then drop(take(valComplex, 7), 6)
+							else throw("Incorrect type of guess provided")
+
+						let isWin = drop(guess, 1) == valReal
+						
+						let isMoneyStillEnough = newFees < (paymentTx.amount - registerBetTxFee) * koeff + minWithdrawFee
+
+						(isWin || throw("You didn't guess")) 
+						&& 
+						(isMoneyStillEnough || throw("Not enough money for withdraw")) 
+
+					else false
+					
+				case _ => false
+			}
+		}
+		else 
+			false
+		
+	case _ => sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+
+}
