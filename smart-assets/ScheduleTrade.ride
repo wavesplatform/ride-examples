@@ -1,0 +1,96 @@
+
+# Also you can issue an asset that can be traded on DEX only according with some schedule.
+# For example every day from 10 to 20 o’clock, from monday to friday, like on real exchanges.
+
+# First of all you have to publish a data transaction with a schedule for the next week timestamps,
+# and renew it every week (it is possible to automate this task with a cron script)
+
+# This is the example of data transactions with a timestamps for the first week of January 2019:
+# You can issue an asset that will verify that trading timestamp is between tradeStart and tradeEnd
+# Example or data TX:
+
+/* {
+  "type": 12,
+  "data": {
+    "fee": {
+      "assetId": "WAVES",
+      "tokens": "0.005"
+    },
+    "data": [
+      {
+        "type": "integer",
+        "key": "mondayTradeStart",
+        "value": 1548669600000
+      },
+      {
+        "type": "integer",
+        "key": "mondayTradeEnd",
+        "value": 1548702000000
+      },
+        {
+        "type": "integer",
+        "key": "tuesdayTradeStart",
+        "value": 1548756000000
+      },
+      {
+        "type": "integer",
+        "key": "tuesdayTradeEnd",
+        "value": 1548788400000
+      },
+
+        {
+        "type": "integer",
+        "key": "wednesdayTradeStart",
+        "value": 1548842400000
+      },
+      {
+        "type": "integer",
+        "key": "wednesdayTradeEnd",
+        "value": 1548874800000
+      },
+        {
+        "type": "integer",
+        "key": "thursdayTradeStart",
+        "value": 1548928800000
+      },
+      {
+        "type": "integer",
+        "key": "thursdayTradeEnd",
+        "value": 1548961200000
+      },
+         {
+        "type": "integer",
+        "key": "fridayTradeStart",
+        "value": 1549015200000
+      },
+      {
+        "type": "integer",
+        "key": "fridayTradeEnd",
+        "value": 1549047600000
+      }
+    ]
+  }
+}
+*/
+
+
+
+let timeOracleAddress = Address(base58'3P4V5znH4AvkpNVZ2EKSmkdSCeJppsZ4x8F')
+match (tx) {
+  case tx:ExchangeTransaction =>
+      let mondayTradeStart = extract(getInteger(timeOracleAddress, "mondayTradeStart"))
+      let mondayTradeEnd = extract(getInteger(timeOracleAddress, "mondayTradeEnd"))
+      let tuesdayTradeStart = extract(getInteger(timeOracleAddress, "tuesdayTradeStart"))
+      let tuesdayTradeEnd = extract(getInteger(timeOracleAddress, "tuesdayTradeEnd"))
+      let wednesdayTradeStart = extract(getInteger(timeOracleAddress, "wednesdayTradeStart"))
+      let wednesdayTradeEnd = extract(getInteger(timeOracleAddress, "wednesdayTradeEnd"))
+      let thursdayTradeStart = extract(getInteger(timeOracleAddress, "thursdayTradeStart"))
+      let thursdayTradeEnd = extract(getInteger(timeOracleAddress, "thursdayTradeEnd"))
+      let fridayTradeStart = extract(getInteger(timeOracleAddress, "fridayTradeStart"))
+      let fridayTradeEnd = extract(getInteger(timeOracleAddress, "fridayTradeEnd"))
+
+      (tx.timestamp >= mondayTradeStart && tx.timestamp <= mondayTradeEnd) || (tx.timestamp >= tuesdayTradeStart && tx.timestamp <= tuesdayTradeEnd)||
+      (tx.timestamp >= wednesdayTradeStart && tx.timestamp <= wednesdayTradeEnd) || (tx.timestamp >= thursdayTradeStart && tx.timestamp <= thursdayTradeEnd)||
+      (tx.timestamp >= fridayTradeStart && tx.timestamp <= fridayTradeEnd)
+  case _ => true
+}

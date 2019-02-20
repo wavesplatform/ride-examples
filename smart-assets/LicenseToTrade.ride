@@ -1,0 +1,13 @@
+# For example you want to create an asset that can be traded only by those clients who have some special asset as a license
+# So you can regulate who is able to trade your token or it may be usefull in games,
+# sending this token can give the character an ability to trade or perform other skills
+# or amount of this token can imitate the health points of the players, so you can "trade" only if you are alive:)
+#
+# In this script case you can buy or sell SmartAsset only if your WavesCommunity token balance is greater then 10
+
+let WCTlicenseToTradeAsset = base58'2CjLFYkp4W4sEAxCjFG9oD3smfhvV6yQnNmiJyexbLdu'
+match (tx) {
+    case tx:ExchangeTransaction =>
+        assetBalance(tx.sellOrder.sender, WCTlicenseToTradeAsset) > 10_00 && assetBalance(tx.buyOrder.sender, WCTlicenseToTradeAsset) > 10_00
+    case _ => true
+}
