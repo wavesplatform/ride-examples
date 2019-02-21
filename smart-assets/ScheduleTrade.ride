@@ -1,12 +1,12 @@
 
 # Also you can issue an asset that can be traded on DEX only according with some schedule.
-# For example every day from 10 to 20 o’clock, from monday to friday, like on real exchanges.
+# For example every day from 10 to 19 o’clock, from monday to friday, like on real exchanges.
 
 # First of all you have to publish a data transaction with a schedule for the next week timestamps,
 # and renew it every week (it is possible to automate this task with a cron script)
 
-# This is the example of data transactions with a timestamps for the first week of January 2019:
-# You can issue an asset that will verify that trading timestamp is between tradeStart and tradeEnd
+# This is the example of data transactions with a an approximate height from 10 to 19 o'clock from 25 February to the 1st of March:
+# You can issue an asset that will verify that current blockchain height is between tradeStart and tradeEnd
 # Example or data TX:
 
 /* {
@@ -20,53 +20,53 @@
       {
         "type": "integer",
         "key": "mondayTradeStart",
-        "value": 1548669600000
+        "value": 1411748
       },
       {
         "type": "integer",
         "key": "mondayTradeEnd",
-        "value": 1548702000000
+        "value": 1412288
       },
         {
         "type": "integer",
         "key": "tuesdayTradeStart",
-        "value": 1548756000000
+        "value": 1413188
       },
       {
         "type": "integer",
         "key": "tuesdayTradeEnd",
-        "value": 1548788400000
+        "value": 1413728
       },
 
         {
         "type": "integer",
         "key": "wednesdayTradeStart",
-        "value": 1548842400000
+        "value": 1414628
       },
       {
         "type": "integer",
         "key": "wednesdayTradeEnd",
-        "value": 1548874800000
+        "value": 1415168
       },
         {
         "type": "integer",
         "key": "thursdayTradeStart",
-        "value": 1548928800000
+        "value": 1416068
       },
       {
         "type": "integer",
         "key": "thursdayTradeEnd",
-        "value": 1548961200000
+        "value": 1416608
       },
          {
         "type": "integer",
         "key": "fridayTradeStart",
-        "value": 1549015200000
+        "value": 1417508
       },
       {
         "type": "integer",
         "key": "fridayTradeEnd",
-        "value": 1549047600000
+        "value": 1418048
       }
     ]
   }
