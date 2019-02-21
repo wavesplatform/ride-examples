@@ -89,8 +89,8 @@ match (tx) {
       let fridayTradeStart = extract(getInteger(timeOracleAddress, "fridayTradeStart"))
       let fridayTradeEnd = extract(getInteger(timeOracleAddress, "fridayTradeEnd"))
 
-      (tx.timestamp >= mondayTradeStart && tx.timestamp <= mondayTradeEnd) || (tx.timestamp >= tuesdayTradeStart && tx.timestamp <= tuesdayTradeEnd)||
-      (tx.timestamp >= wednesdayTradeStart && tx.timestamp <= wednesdayTradeEnd) || (tx.timestamp >= thursdayTradeStart && tx.timestamp <= thursdayTradeEnd)||
-      (tx.timestamp >= fridayTradeStart && tx.timestamp <= fridayTradeEnd)
+      (height >= mondayTradeStart && height <= mondayTradeEnd) || (height >= tuesdayTradeStart && height <= tuesdayTradeEnd)||
+      (height >= wednesdayTradeStart && height <= wednesdayTradeEnd) || (height >= thursdayTradeStart && height <= thursdayTradeEnd)||
+      (height >= fridayTradeStart && height <= fridayTradeEnd)
   case _ => true
 }
