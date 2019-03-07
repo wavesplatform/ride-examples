@@ -1,0 +1,30 @@
+let issuer = Address(base58'3P3oH9HHoCuoqSBNvVK8kvff39ikAF9DJgV')
+
+match tx {
+    case tx : TransferTransaction =>
+        let recipient = toBase58String(addressFromRecipient(tx.recipient).bytes)
+        let recipientCategory = getString(issuer, recipient)
+        
+        tx.sender == issuer || {
+            if isDefined(recipientCategory) && extract(recipientCategory) == "ambassador" then true
+            else throw("This asset can be transferred to whitelist only")
+        }
+    case tx : ExchangeTransaction =>
+        let sell = sigVerify(tx.sellOrder.bodyBytes, tx.sellOrder.proofs[0], tx.sellOrder.senderPublicKey)
+        let buy = sigVerify(tx.buyOrder.bodyBytes, tx.buyOrder.proofs[0], tx.buyOrder.senderPublicKey)
+        
+        let sellOrderSender = toBase58String(tx.sellOrder.sender.bytes)
+        let sellOrderSenderCategory = getString(issuer, sellOrderSender)
+
+        (buy && (tx.buyOrder.sender == issuer || throw("You cannot buy this asset")))
+        || (sell && {
+            if isDefined(sellOrderSenderCategory) && extract(sellOrderSenderCategory) == "ambassador" then true
+            else throw("Only whitelist can sell this asset")
+        })
+    case tx : MassTransferTransaction =>
+        tx.sender == issuer || throw("You cannot send this asset via MassTransferTransaction")
+    case tx : BurnTransaction =>
+        tx.sender == issuer || throw("You cannot burn this asset")
+    case tx : SetAssetScriptTransaction | ReissueTransaction => true
+    case _ => false
+}
