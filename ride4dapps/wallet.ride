@@ -1,0 +1,63 @@
+# In this example multiple accounts can deposit their funds and safely take them back, no one can interfere with this.
+# An inner state is maintained as mapping `address=>waves`.
+
+# You can try this contract by following commands in the IDE (ide.wavesplatform.com)
+# Run commands as listed below
+# From account #0:
+#      broadcast(transfer({recipient:address(env.accounts[1]), amount: 1000000000}))
+#      broadcast(transfer({recipient:address(env.accounts[2]), amount: 1000000000}))
+# From account #1:
+#      deploy()
+# From account #2:
+#      broadcast(invokeScript({contractAddress: address(env.accounts[1]), call:{function:"deposit",args:[]}, payment: [{amount: 300000000, asset:null }]}))
+#      # observe state and balance of account(1)
+#      broadcast(invokeScript({contractAddress: address(env.accounts[1]), call:{function:"deposit",args:[]}, payment: [{amount: 200000000, asset:null }]}))
+#      # observe state and balance of account(1)
+#      broadcast(invokeScript({contractAddress: address(env.accounts[1]), call:{function:"withdraw",args:[{type:"integer", value: 600000000}]}, payment: []}))
+#      # observe error, nothing changed
+#      broadcast(invokeScript({contractAddress: address(env.accounts[1]), call:{function:"withdraw",args:[{type:"integer", value: 400000000}]}, payment: []}))
+#      # observe state and balance of account(1)
+
+
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE CONTRACT #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func deposit() = {
+   let pmt = extract(i.payment)
+   if (isDefined(pmt.asset)) then throw("can hodl waves only at the moment")
+   else {
+        let currentKey = toBase58String(i.caller.bytes)
+        let currentAmount = match getInteger(this, currentKey) {
+            case a:Int => a
+            case _ => 0
+        }
+        let newAmount = currentAmount + pmt.amount
+        WriteSet([DataEntry(currentKey, newAmount)])
+   }
+}
+
+@Callable(i)
+func withdraw(amount: Int) = {
+        let currentKey = toBase58String(i.caller.bytes)
+        let currentAmount = match getInteger(this, currentKey) {
+            case a:Int => a
+            case _ => 0
+        }
+        let newAmount = currentAmount - amount
+     if (amount < 0)
+            then throw("Can't withdraw negative amount")
+    else if (newAmount < 0)
+            then throw("Not enough balance")
+            else ContractResult(
+                    WriteSet([DataEntry(currentKey, newAmount)]),
+                    TransferSet([ContractTransfer(i.caller, amount, unit)])
+                )
+    }
+
+
+@Verifier(tx)
+func verify() = {
+    true
+}
