@@ -7,7 +7,7 @@
 # Additional restriction: a ticket can be burnt only after the show is over.
 #
 
-{-# STDLIB_VERSION 3 #-}
+{-# STDLIB_VERSION 2 #-}
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ASSET #-}
 

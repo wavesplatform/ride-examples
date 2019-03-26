@@ -3,7 +3,7 @@
 # Also you can define in what pairs your token can be traded.
 # This token can be traded only with BTC/ETH/LTC/ZEC/DASH/XMR/USD/EUR price assets
 
-{-# STDLIB_VERSION 3 #-}
+{-# STDLIB_VERSION 2 #-}
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ASSET #-}
 

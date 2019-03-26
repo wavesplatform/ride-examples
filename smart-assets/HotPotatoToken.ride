@@ -3,7 +3,7 @@
 # after that 5000 blocks you will have to pay the fee more than 1 Waves to transfer it.
 # you have to pay 10 Waves as fee to burn it, you can transfer it only to an account with >10 Waves
 
-{-# STDLIB_VERSION 3 #-}
+{-# STDLIB_VERSION 2 #-}
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ASSET #-}
 

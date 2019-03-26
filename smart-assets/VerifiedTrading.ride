@@ -1,6 +1,6 @@
 # Set Smart asset to trade only with BetterTokens verified assets and Waves.
 
-{-# STDLIB_VERSION 3 #-}
+{-# STDLIB_VERSION 2 #-}
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ASSET #-}
 

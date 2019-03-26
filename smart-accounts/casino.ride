@@ -79,7 +79,7 @@
 # if you find this script useful, you can donate
 # Waves address: 3P5VCmMc7fqqJijHaS3yB8jCwq7rgmLpszx
 
-{-# STDLIB_VERSION 3 #-}
+{-# STDLIB_VERSION 2 #-}
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
 

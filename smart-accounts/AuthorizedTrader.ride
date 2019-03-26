@@ -4,7 +4,7 @@
 #order expiration time should be less then 2 minutes, as trader cannot cancel orders in current RIDE version
 #at any time accout owner can cancel
 
-{-# STDLIB_VERSION 3 #-}
+{-# STDLIB_VERSION 2 #-}
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
 
