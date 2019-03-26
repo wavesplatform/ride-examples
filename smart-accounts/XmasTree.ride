@@ -27,6 +27,10 @@
 #    Transition: PlayerDecidedNotToSendDonationState -> <InvalidState>
 ######################
 
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
 ### Injected values ###
 let serversPublicKey = base58'5AzfA9UfpWVYiwFwvdr77k6LWupSTGLb14b24oVdEpMM'
 let enctyptedServersChoice = base58'5AzfA9UfpWVYiwFwvdr77k6LWupSTGLb14b24oVdEpMM' # keccak256(serversChoice + serversSalt)

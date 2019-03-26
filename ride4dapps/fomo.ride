@@ -1,5 +1,6 @@
 {-# STDLIB_VERSION 3 #-}
-{-# CONTENT_TYPE CONTRACT -#}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
 
 let lpKey = "lastPayment"
 let liKey = "bestFomoer"
@@ -10,8 +11,8 @@ let day = 1440
 func fearmissing() = {
    let payment = match i.payment {
 	   case p:AttachedPayment =>
-	   		match p.asset {
-				   case asset: ByteVector => throw("fomo waves only")
+	   		match p.assetId  {
+				   case assetId: ByteVector => throw("fomo waves only")
 				   case _ => p.amount
 			   }
 
@@ -39,6 +40,6 @@ func withdraw() = {
 	let canWithdraw = heightCorrect && callerCorrect
 
 	if (canWithdraw)
-		then TransferSet([ContractTransfer(i.caller, wavesBalance(this), unit)])
+		then TransferSet([ScriptTransfer(i.caller, wavesBalance(this), unit)])
 		else throw("behold")
 }

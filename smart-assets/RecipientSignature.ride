@@ -7,6 +7,10 @@
 # 2. Recipient calculates signature, adds his public key and signature to attachment field. Sends tx back to sender.
 # 3. Sender signs tx with attachment. Tx can now be sent to blockchain
 
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
+
 # Set network byte. 87 for mainnet
 let NETWORKBYTE = takeRight(toBytes(87), 1)
 

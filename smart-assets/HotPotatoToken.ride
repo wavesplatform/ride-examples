@@ -3,12 +3,14 @@
 # after that 5000 blocks you will have to pay the fee more than 1 Waves to transfer it.
 # you have to pay 10 Waves as fee to burn it, you can transfer it only to an account with >10 Waves
 
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
+
 let minimumWavesBalance = 10_00_000_000
 let moveTimeInBlocks = 5000
 let minimalFeeToMove = 1_0_000_000
 let minimalFeeToBurn = 5_0_000_000
-
-
 
 match (tx) {
     case t:TransferTransaction => {

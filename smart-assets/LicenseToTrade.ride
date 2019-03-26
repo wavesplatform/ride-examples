@@ -5,6 +5,10 @@
 #
 # In this script case you can buy or sell SmartAsset only if your WavesCommunity token balance is greater then 10
 
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
+
 let WCTlicenseToTradeAsset = base58'2CjLFYkp4W4sEAxCjFG9oD3smfhvV6yQnNmiJyexbLdu'
 match (tx) {
     case tx:ExchangeTransaction =>

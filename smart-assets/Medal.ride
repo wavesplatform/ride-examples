@@ -8,6 +8,10 @@
 # but can give it back to the issuer.
 #
 
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
+
 let master = addressFromString("3masterAddress")
 match tx {
     case t: TransferTransaction =>

@@ -4,6 +4,10 @@
 #order expiration time should be less then 2 minutes, as trader cannot cancel orders in current RIDE version
 #at any time accout owner can cancel
 
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
 let traderPublicKey = base58'QLMkJYFXsXiLLiKCbVCZZzQQT3whz8PAPdT7w4yQjEn'
 let ownerPublicKey = base58'4gFmmsNv1qA9Krn3pUGbZVcJQTCsXEXhZjEtszDtxMXz'
 let amountAsset = base58'8LLpj6yQLUu37KUt3rVo1S69j2gWMbgbM6qqgt2ac1Vb'
