@@ -1,5 +1,9 @@
 # Set Smart asset to trade only with BetterTokens verified assets and Waves.
-#
+
+{-# STDLIB_VERSION 2 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
+
 # BetterTokens Oracle address.
 let addr = Address(base58'3P6t5mKGwVDkyjFhtUqw4NnecyC3DRpLfkw')
 

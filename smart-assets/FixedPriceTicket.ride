@@ -7,6 +7,10 @@
 # Additional restriction: a ticket can be burnt only after the show is over.
 #
 
+{-# STDLIB_VERSION 2 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
+
 let expiration = 1552064400000  # March 8 2019, 8pm Moscow time
 let price = 1000000000          # 10 WAVES
 match tx {

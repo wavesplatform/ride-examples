@@ -79,6 +79,9 @@
 # if you find this script useful, you can donate
 # Waves address: 3P5VCmMc7fqqJijHaS3yB8jCwq7rgmLpszx
 
+{-# STDLIB_VERSION 2 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
 
 let me = tx.sender
 let oracle = extract(addressFromString("3NCzaYTNDGtR8zf9yfcqePFjCqFx9S5zhs4"))

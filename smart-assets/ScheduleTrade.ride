@@ -9,71 +9,72 @@
 # You can issue an asset that will verify that current blockchain height is between tradeStart and tradeEnd
 # Example or data TX:
 
-/* {
-  "type": 12,
-  "data": {
-    "fee": {
-      "assetId": "WAVES",
-      "tokens": "0.005"
-    },
-    "data": [
-      {
-        "type": "integer",
-        "key": "mondayTradeStart",
-        "value": 1411748
-      },
-      {
-        "type": "integer",
-        "key": "mondayTradeEnd",
-        "value": 1412288
-      },
-        {
-        "type": "integer",
-        "key": "tuesdayTradeStart",
-        "value": 1413188
-      },
-      {
-        "type": "integer",
-        "key": "tuesdayTradeEnd",
-        "value": 1413728
-      },
+# {
+#   "type": 12,
+#   "data": {
+#     "fee": {
+#       "assetId": "WAVES",
+#       "tokens": "0.005"
+#     },
+#     "data": [
+#       {
+#         "type": "integer",
+#         "key": "mondayTradeStart",
+#         "value": 1411748
+#       },
+#       {
+#         "type": "integer",
+#         "key": "mondayTradeEnd",
+#         "value": 1412288
+#       },
+#         {
+#         "type": "integer",
+#         "key": "tuesdayTradeStart",
+#         "value": 1413188
+#       },
+#       {
+#         "type": "integer",
+#         "key": "tuesdayTradeEnd",
+#         "value": 1413728
+#       },
+#
+#         {
+#         "type": "integer",
+#         "key": "wednesdayTradeStart",
+#         "value": 1414628
+#       },
+#       {
+#         "type": "integer",
+#         "key": "wednesdayTradeEnd",
+#         "value": 1415168
+#       },
+#         {
+#         "type": "integer",
+#         "key": "thursdayTradeStart",
+#         "value": 1416068
+#       },
+#       {
+#         "type": "integer",
+#         "key": "thursdayTradeEnd",
+#         "value": 1416608
+#       },
+#          {
+#         "type": "integer",
+#         "key": "fridayTradeStart",
+#         "value": 1417508
+#       },
+#       {
+#         "type": "integer",
+#         "key": "fridayTradeEnd",
+#         "value": 1418048
+#       }
+#     ]
+#   }
+# }
 
-        {
-        "type": "integer",
-        "key": "wednesdayTradeStart",
-        "value": 1414628
-      },
-      {
-        "type": "integer",
-        "key": "wednesdayTradeEnd",
-        "value": 1415168
-      },
-        {
-        "type": "integer",
-        "key": "thursdayTradeStart",
-        "value": 1416068
-      },
-      {
-        "type": "integer",
-        "key": "thursdayTradeEnd",
-        "value": 1416608
-      },
-         {
-        "type": "integer",
-        "key": "fridayTradeStart",
-        "value": 1417508
-      },
-      {
-        "type": "integer",
-        "key": "fridayTradeEnd",
-        "value": 1418048
-      }
-    ]
-  }
-}
-*/
-
-
+{-# STDLIB_VERSION 2 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
 
 let timeOracleAddress = Address(base58'3P4V5znH4AvkpNVZ2EKSmkdSCeJppsZ4x8F')
 match (tx) {

@@ -2,6 +2,10 @@
 # Token owners can transfer it only if they pay taxes to the issuer
 # The tax size is defined by token issuer in data transaction
 
+{-# STDLIB_VERSION 2 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
+
 match (tx) {
     # we allow only mass transfer transactions
     # first transfer in MassTransfer should always go to the issuer

@@ -6,6 +6,10 @@
 # 7th significant digit.
 #
 
+{-# STDLIB_VERSION 2 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
+
 let issuer = Address(base58'3issuerAddress')
 let assetId = base58'ThisAsset1d'
 match tx {

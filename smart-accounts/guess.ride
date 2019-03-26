@@ -5,6 +5,10 @@
 # any number of WAVES from this account if he/she has 
 # a correct answer in an attachment of TransferTransaction  
 
+{-# STDLIB_VERSION 2 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
 let this=extract(tx.sender)
 
 match(tx)
