@@ -9,13 +9,13 @@
 # From account #1:
 #      deploy()
 # From account #2:
-#      broadcast(invokeScript({contractAddress: address(env.accounts[1]), call:{function:"deposit",args:[]}, payment: [{amount: 300000000, asset:null }]}))
+#      broadcast(invokeScript({dappAddress: address(env.accounts[1]), call:{function:"deposit",args:[]}, payment: [{amount: 300000000, asset:null }]}))
 #      # observe state and balance of account(1)
-#      broadcast(invokeScript({contractAddress: address(env.accounts[1]), call:{function:"deposit",args:[]}, payment: [{amount: 200000000, asset:null }]}))
+#      broadcast(invokeScript({dappAddress: address(env.accounts[1]), call:{function:"deposit",args:[]}, payment: [{amount: 200000000, asset:null }]}))
 #      # observe state and balance of account(1)
-#      broadcast(invokeScript({contractAddress: address(env.accounts[1]), call:{function:"withdraw",args:[{type:"integer", value: 600000000}]}, payment: []}))
+#      broadcast(invokeScript({dappAddress: address(env.accounts[1]), call:{function:"withdraw",args:[{type:"integer", value: 600000000}]}, payment: []}))
 #      # observe error, nothing changed
-#      broadcast(invokeScript({contractAddress: address(env.accounts[1]), call:{function:"withdraw",args:[{type:"integer", value: 400000000}]}, payment: []}))
+#      broadcast(invokeScript({dappAddress: address(env.accounts[1]), call:{function:"withdraw",args:[{type:"integer", value: 400000000}]}, payment: []}))
 #      # observe state and balance of account(1)
 
 
