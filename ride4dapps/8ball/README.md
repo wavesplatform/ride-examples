@@ -23,7 +23,7 @@ And it also ensures that same question should get a different answer.
 ### DApp on Testnet
 
 Code for [RIDE IDE](https://ide.wavesplatform.com/) console
-```
+```JS
 const question = "Should i do that?"
 const invokeTX = invokeScript({ fee: 500000, dappAddress: "3N27HUMt4ddx2X7foQwZRmpFzg5PSzLrUgU", call:{function:"tellme",args:[{"type": "string", "value": question}]}, payment: null})
 broadcast(invokeTX)
