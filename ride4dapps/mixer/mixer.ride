@@ -1,0 +1,36 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let FeePercent = 1
+
+@Callable(i)
+func deposit(hash: ByteVector) = {
+   let pmt = extract(i.payment)
+   if (isDefined(pmt.assetId) || pmt.amount < 100) then throw("can hold waves only at the moment")
+   else {
+        let currentKey = toBase58String(hash)
+        let currentAmount = match getInteger(this, currentKey) {
+            case a:Int => a
+            case _ => 0
+        }
+        let fee = pmt.amount * FeePercent / 100
+        let newAmount = currentAmount + pmt.amount - fee
+        WriteSet([DataEntry(currentKey, newAmount)])
+   }
+}
+
+@Callable(i)
+func withdraw(complexity: Int) = {
+    let currentKey = toBase58String(blake2b256(take(drop(i.caller.bytes, 2), complexity) + takeRight(i.caller.bytes, complexity)))
+    let amount = match getInteger(this, currentKey) {
+        case a:Int => a
+        case _ => 0
+    }
+    if (amount <= 0)
+        then throw("Can't withdraw negative amount")
+    else ScriptResult(
+        WriteSet([DataEntry(currentKey, 0)]),
+        TransferSet([ScriptTransfer(i.caller, amount, unit)])
+    )
+}
