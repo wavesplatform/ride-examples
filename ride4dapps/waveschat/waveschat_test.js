@@ -1,5 +1,5 @@
 describe('Messenger test', () => {
-    const dappAddress = "3Musn2zFuw3G71yg6G7PDRAq7CjWxK7Z4pk"
+    const dappAddress = "3N7H98TgE5umm7vxwkdsLMVsny1icuu93Zh"
 
     const firstPK = "FxKjemCJ9s9yrG5RuDXAtGXZNsTsAr1FMhzNmUKG4GyE"
     const secondPK = "5nRF8WDnjWrGhZeYEV8zh7MG1kgpYbnJaEt5G3vsR4e2"
