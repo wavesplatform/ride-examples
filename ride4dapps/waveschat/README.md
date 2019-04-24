@@ -4,7 +4,7 @@ Basically works like a chat-roulette with an
 1. Optional channel
 2. Optional payment, which forces to pay the same amount to talk with you 
 
-Try now at https://a51a0717-d701-40a6-afe6-6e09662ca8d0.pub.cloud.scaleway.com (Requires Waves Keeper **with InvokeScript support in TESTNET mode**)
+Try now at https://c77c579e-6dde-4971-92e7-e0439c25ccd0.pub.cloud.scaleway.com (Requires Waves Keeper **with InvokeScript support in TESTNET mode**)
 
 # How it works
 1. First user (Bob) invokes script function `init(bobPublicKey)`
