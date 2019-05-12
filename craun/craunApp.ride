@@ -1,0 +1,179 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func isSubstrExist(str: String, substr: String) = match indexOf(str, substr) {
+  case index: Int => true
+  case index: Unit => false
+}
+
+func getIntegerFromAccount(accountAddress: Address | Alias, key: String) = match getInteger(accountAddress, key) {
+  case a: Int => a
+  case _ => 0
+}
+
+func getUserBalanceKey(userAccountAddressStr: String, balanceType: String) = {
+  userAccountAddressStr + "_" + balanceType + "-balance"
+}
+
+@Callable(i)
+func deposit() = {
+  let payment = extract(i.payment)
+
+  if (isDefined(payment.assetId)) then {
+    throw("you can deposit only waves")
+  } else {
+    let userAccountAddress = toBase58String(i.caller.bytes)
+
+    let userAvailableBalanceKey = getUserBalanceKey(userAccountAddress, "available")
+
+    let userBalance = getIntegerFromAccount(this, userAvailableBalanceKey)
+
+    let newUserActiveBalance = userBalance + payment.amount
+
+    WriteSet([
+      DataEntry(userAvailableBalanceKey, newUserActiveBalance)
+    ])
+  }
+}
+
+@Callable(i)
+func withdraw(amount: Int) = {
+  let userAccountAddressStr = toBase58String(i.caller.bytes)
+  let userAccountAddress = addressFromStringValue(userAccountAddressStr)
+
+  let userAvailableBalanceKey = getUserBalanceKey(userAccountAddressStr, "available")
+
+  let userActiveBalance = getIntegerFromAccount(this, userAvailableBalanceKey)
+
+  let newUserActiveBalance = userActiveBalance - amount
+
+  if (amount < 0) then {
+    throw("Can't withdraw negative amount")
+  } else if (newUserActiveBalance < 0) then {
+    throw("Not enough balance")
+  } else {
+    ScriptResult(
+      WriteSet([DataEntry(userAvailableBalanceKey, newUserActiveBalance)]),
+      TransferSet([ScriptTransfer(userAccountAddress, amount, unit)])
+    )
+  }
+}
+
+@Callable(i)
+func addGoal(
+  goalAccountAddressStr: String
+) = {
+  let userAccountAddress = toBase58String(i.caller.bytes)
+
+  let goalAccountAddress = addressFromStringValue(goalAccountAddressStr);
+
+  let userAvailableBalanceKey = getUserBalanceKey(userAccountAddress, "available")
+  let userFrozenBalanceKey = getUserBalanceKey(userAccountAddress, "frozen")
+  let userLostBalanceKey = getUserBalanceKey(userAccountAddress, "lost")
+
+  let userActiveBalance = getIntegerFromAccount(this, userAvailableBalanceKey)
+  let userFrozenBalance = getIntegerFromAccount(this, userFrozenBalanceKey)
+
+  let failPenalty = getIntegerFromAccount(goalAccountAddress, "failPenalty")
+  let archievePenalty = getIntegerFromAccount(goalAccountAddress, "archievePenalty")
+  let attemptsCount = getIntegerFromAccount(goalAccountAddress, "attemptsCount")
+
+  let frozeAmount = failPenalty * attemptsCount + archievePenalty
+    
+  if (frozeAmount > userActiveBalance) then {
+    throw("You can't create goal, not enough balance on your account to froze")
+  }
+  else {
+    let newUserActiveBalance = userActiveBalance - frozeAmount;
+    let newUserFrozenBalance = userFrozenBalance + frozeAmount;
+
+    WriteSet([
+      DataEntry(userAvailableBalanceKey, newUserActiveBalance),
+      DataEntry(userFrozenBalanceKey, newUserFrozenBalance)
+    ])
+  }
+}
+
+@Callable(i)
+func checkUserGoal(
+  goalAccountAddressStr: String,
+  userAccountAddressStr: String,
+  recordDate: String
+) = {
+  let goalAccountAddress = addressFromStringValue(goalAccountAddressStr);
+
+  let userInactiveGoalsKey = userAccountAddressStr + "_" + "innactive-goals"
+
+  let userInactiveGoals = match getString(this, userInactiveGoalsKey) {
+    case x: Unit => ""
+    case x: String => x
+  }
+
+  let isGoalInactive = isSubstrExist(userInactiveGoals, goalAccountAddressStr);
+
+  if (isGoalInactive) then {
+    throw("Can't not check user goal execution. The goal is not active.")
+  } else {
+    let userAvailableBalanceKey = getUserBalanceKey(userAccountAddressStr, "available")
+    let userFrozenBalanceKey = getUserBalanceKey(userAccountAddressStr, "frozen")
+    let userLostBalanceKey = getUserBalanceKey(userAccountAddressStr, "lost")
+
+    let userActiveBalance = getIntegerFromAccount(this, userAvailableBalanceKey)
+    let userFrozenBalance = getIntegerFromAccount(this, userFrozenBalanceKey)
+    let userLostBalance = getIntegerFromAccount(this, userLostBalanceKey)
+    
+    let failPenalty = getIntegerFromAccount(goalAccountAddress, "failPenalty")
+    let archievePenalty = getIntegerFromAccount(goalAccountAddress, "archievePenalty")
+
+    let goalStatus = getStringValue(goalAccountAddress, "status")
+
+    if (goalStatus == "archived") then {
+      WriteSet([
+        DataEntry(userAvailableBalanceKey, userActiveBalance + (userFrozenBalance - archievePenalty)),
+        DataEntry(userFrozenBalanceKey, 0),
+        DataEntry(userLostBalanceKey, userLostBalance + archievePenalty),
+        DataEntry(userInactiveGoalsKey, userInactiveGoals + "," + goalAccountAddressStr)
+      ])
+    } else if (goalStatus == "failed") then {
+      WriteSet([
+        DataEntry(userAvailableBalanceKey, userActiveBalance + archievePenalty),
+        DataEntry(userFrozenBalanceKey, 0),
+        DataEntry(userInactiveGoalsKey, userInactiveGoals + "," + goalAccountAddressStr)
+      ])
+    } else if (goalStatus == "completed") then {
+      WriteSet([
+        DataEntry(userAvailableBalanceKey, userActiveBalance + userFrozenBalance),
+        DataEntry(userFrozenBalanceKey, 0),
+        DataEntry(userInactiveGoalsKey, userInactiveGoals + "," + goalAccountAddressStr)
+      ])
+    } else {
+      let goalRecordKey = "record" + "_" + recordDate
+
+      let goalRecordValue = match getBoolean(goalAccountAddress, goalRecordKey) {
+        case a:Boolean => a
+        case _ => false
+      }
+      
+      if (goalRecordValue == false) then {
+        let updatedUserFrozenBalance = userFrozenBalance - failPenalty;
+        let updatedUserLostBalance = userLostBalance + failPenalty;
+
+        WriteSet([
+          DataEntry(userFrozenBalanceKey, updatedUserFrozenBalance),
+          DataEntry(userLostBalanceKey, updatedUserLostBalance)
+        ])
+      } else {
+        WriteSet([
+          DataEntry(userFrozenBalanceKey, userFrozenBalance),
+          DataEntry(userLostBalanceKey, userLostBalance)
+        ])
+      }
+    }
+  }
+}
+
+@Verifier(tx)
+func verify() = {
+  true
+}

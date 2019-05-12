@@ -1,0 +1,89 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func getIntegerFromAccount(accountAddress: Address | Alias, key: String) = match getInteger(accountAddress, key) {
+  case a: Int => a
+  case _ => 0
+}
+
+@Callable(i)
+func setup(
+  userAddress: String,
+  title: String,
+  distance: Int,
+  recordWeekDays: String,
+  archievePenalty: Int,
+  failPenalty: Int,
+  attemptsCount: Int,
+  startDate: String,
+  endDate: String
+) = {
+  WriteSet([
+    DataEntry("userAddress", userAddress),
+    DataEntry("status", "running"), #running | archived | failed | completed
+    DataEntry("title", title),
+    DataEntry("distance", distance),
+    DataEntry("recordWeekDays", recordWeekDays),
+    DataEntry("archievePenalty", archievePenalty),
+    DataEntry("failPenalty", failPenalty),
+    DataEntry("attemptsCount", attemptsCount),
+    DataEntry("failedAttemptsCount", 0),
+    DataEntry("startDate", startDate),
+    DataEntry("endDate", endDate)
+  ])
+}
+@Callable(i)
+func archieveGoal() = {
+  WriteSet([
+    DataEntry("status", "archived")
+  ])
+}
+
+@Callable(i)
+func addRecord(recordDate: String, recordDistance: Int) = {
+  let recordKey = "record" + "_" + recordDate
+
+  let distance = getIntegerFromAccount(this, "distance")
+  let failPenalty = getIntegerFromAccount(this, "failPenalty")
+  let archievePenalty = getIntegerFromAccount(this, "archievePenalty")
+  let recordWeekDays = getIntegerFromAccount(this, "recordWeekDays")
+  let attemptsCount = getIntegerFromAccount(this, "attemptsCount")
+  let failedAttemptsCount = getIntegerFromAccount(this, "failedAttemptsCount")
+
+  let startDate = getStringValue(this, "startDate")
+  let endDate = getStringValue(this, "endDate")
+
+  if (recordDistance >= distance) then {
+    if (endDate == recordDate) then {
+      WriteSet([
+        DataEntry(recordKey, true),
+        DataEntry("status", "completed")
+      ])
+    } else {
+      WriteSet([
+        DataEntry(recordKey, true)
+      ])
+    }
+  } else {
+    let newFailedAttemptsCount = failedAttemptsCount + 1;
+
+    if (newFailedAttemptsCount == attemptsCount) then {
+      WriteSet([
+        DataEntry(recordKey, false),
+        DataEntry("failedAttemptsCount", newFailedAttemptsCount),
+        DataEntry("status", "failed")
+      ]) 
+    } else {
+      WriteSet([
+        DataEntry(recordKey, false),
+        DataEntry("failedAttemptsCount", newFailedAttemptsCount)
+      ])
+    }
+  }
+}
+
+@Verifier(tx)
+func verify() = {
+  true
+}
