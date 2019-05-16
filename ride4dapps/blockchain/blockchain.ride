@@ -2,86 +2,51 @@
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
 
+let dappPublicKey = base58'' # SPECIFY BEFORE SETTING THE CONTRACT!
+
 let keyAccountPrefix = "@"
 let keyPubKeyPrefix = "$"
-let keyBase = "base"
 let keyHeight = "height"
 let keyLast = "last"
 let keyUtx = "utx"
 let keyUtxSize = "utx-size"
 
-let dappPublicKey = base58'' # TODO SET!
-
-let registrationCost = 5
+let registrationCost = 5 # TODO CHECK!
 let utxLimit = 100
 let blockMinerReward = 20
 let initBalance = 5
 
 func h() = getIntegerValue(this, keyHeight)
-func base() = getIntegerValue(this, keyBase)
 
-func blockInfo(h: Int) = getStringValue(this, if h == -1 || h == h() then keyLast else h.toString())
-func blockReferenceHeight(h: Int) = {
-    let blInfo = blockInfo(h)
-    let left = extract(indexOf(blInfo, ",", extract(indexOf(blInfo, ",")) + 1)) + 1
-    let right = extract(indexOf(blInfo, ",", left))
-    take(drop(blInfo, left), right - left).parseIntValue()
-}
-func blockMinerPublicKey(h: Int) = {
-    let blInfo = blockInfo(h)
-    let left = extract(indexOf(blInfo, ",", extract(indexOf(blInfo, ",", extract(indexOf(blInfo, ",")) + 1)) + 1)) + 1
-    let right = extract(indexOf(blInfo, ",", left))
-    take(drop(blInfo, left), right - left)
-}
-func blockPrevHash(h: Int) = {
-    let blInfo = blockInfo(h)
-    let left = extract(indexOf(blInfo, ",", extract(indexOf(blInfo, ",", extract(indexOf(blInfo, ",", extract(indexOf(blInfo, ",")) + 1)) + 1)) + 1)) + 1
-    let right = extract(indexOf(blInfo, ",", left))
-    take(drop(blInfo, left), right - left)
-}
-func blockGasReward(h: Int) = {
-    let blInfo = blockInfo(h)
-    let left = extract(indexOf(blInfo, ",", extract(indexOf(blInfo, ",", extract(indexOf(blInfo, ",", extract(indexOf(blInfo, ",", extract(indexOf(blInfo, ",")) + 1)) + 1)) + 1)) + 1)) + 1
-    let right = extract(indexOf(blInfo, ",", left))
-    take(drop(blInfo, left), right - left).parseIntValue()
-}
+func blockInfo(h: Int) = this.getStringValue(if h == -1 || h == h() then keyLast else h.toString())
+func blockHeaders(h: Int) = blockInfo(h).split(";")[0].split(",")
+
+func blockHash(h: Int) = blockHeaders(h)[0]
+func blockTimestamp(h: Int) = blockHeaders(h)[1].parseIntValue()
+func blockReferenceHeight(h: Int) = blockHeaders(h)[2].parseIntValue()
+func blockMinerAccount(h: Int) = blockHeaders(h)[3]
+func blockNonce(h: Int) = blockHeaders(h)[4].parseIntValue()
+func blockPrevHash(h: Int) = blockHeaders(h)[5]
+func blockDifficulty(h: Int) = blockHeaders(h)[6].parseIntValue()
+func blockGasReward(h: Int) = blockHeaders(h)[7].parseIntValue()
 func blockTxs(h: Int) = {
     let blInfo = blockInfo(h)
-    let semicolon = indexOf(blInfo, ";")
+    let semicolon = blInfo.indexOf(";")
     if isDefined(semicolon) then
-        drop(blInfo, extract(semicolon) + 1)
+        blInfo.drop(semicolon.extract() + 1)
     else ""
 }
 
 func pubKey(pk: ByteVector) = pk.toBase58String()
-func accountOf(pk: ByteVector) = getString(this, keyPubKeyPrefix + pubKey(pk))
-func accountInfo(name: String) = getString(this, keyAccountPrefix + name)
-func isRegistered(pK: ByteVector) = isDefined(accountOf(pK))
-func isTaken(acc: String) = isDefined(accountInfo(acc))
+func isRegistered(pK: ByteVector) = isDefined(this.getString(keyPubKeyPrefix + pubKey(pK)))
+func isTaken(name: String) = isDefined(this.getString(keyAccountPrefix + name))
+func accountOf(pK: ByteVector) = this.getStringValue(keyPubKeyPrefix + pubKey(pK))
+func accountInfo(name: String) = this.getStringValue(keyAccountPrefix + name).split(",")
 
-func pubKeyOf(account: String) = {
-    let accInfo = extract(accountInfo(account))
-    let right = extract(indexOf(accInfo, ","))
-    take(accInfo, right)
-}
-func regHeightOf(account: String) = {
-    let accInfo = extract(accountInfo(account))
-    let left = extract(indexOf(accInfo, ",")) + 1
-    let right = extract(indexOf(accInfo, ",", left))
-    take(drop(accInfo, left), right - left).parseIntValue()
-}
-func totalBalanceOf(account: String) = {
-    let accInfo = extract(accountInfo(account))
-    let left = extract(indexOf(accInfo, ",", extract(indexOf(accInfo, ",")) + 1)) + 1
-    let right = extract(indexOf(accInfo, ",", left))
-    take(drop(accInfo, left), right - left).parseIntValue()
-}
-func availableBalanceOf(account: String) = {
-    let accInfo = extract(accountInfo(account))
-    let left = extract(indexOf(accInfo, ",", extract(indexOf(accInfo, ",", extract(indexOf(accInfo, ",")) + 1)) + 1)) + 1
-    let right = accInfo.size()
-    take(drop(accInfo, left), right - left).parseIntValue()
-}
+func pubKeyOf(account: String) = accountInfo(account)[0]
+func regHeightOf(account: String) = accountInfo(account)[1].parseIntValue()
+func totalBalanceOf(account: String) = accountInfo(account)[2].parseIntValue()
+func availableBalanceOf(account: String) = accountInfo(account)[3].parseIntValue()
 
 func estimate(script: String) = {
     let words = script.split(" ")
@@ -96,7 +61,7 @@ func estimate(script: String) = {
 func evaluate(script: String) = {
     let words = script.split(" ")
     func send(recipient: String, amount: Int) = {
-        DataEntry(keyAccountPrefix + recipient, pubKeyOf(recipient) + "," + regHeightOf(recipient).toString() + ","
+        DataEntry(keyAccountPrefix + recipient, pubKeyOf(recipient) + "," + regHeightOf(recipient).toString() + "," 
             + (totalBalanceOf(recipient) + amount).toString() + "," + (availableBalanceOf(recipient) + amount).toString())
     }
 
@@ -129,142 +94,176 @@ func validate(acc: String, gas: Int, script: String, checkBalance: Boolean) = {
 @Callable(i)
 func genesis() = {
     if i.caller != this then
-        throw("blockchain can be created only by the dApp")
-    else if isDefined(getString(this, keyLast))
-        || isDefined(getInteger(this, keyHeight))
-        || isDefined(getInteger(this, keyBase))
-        || isDefined(getInteger(this, keyUtx))
-        || isDefined(getInteger(this, keyUtxSize))
+        throw("Rudechain can be created only by the dApp")
+    else if isDefined(this.getString(keyLast))
+        || isDefined(this.getInteger(keyHeight))
+        || isDefined(this.getInteger(keyUtx))
+        || isDefined(this.getInteger(keyUtxSize))
     then
-        throw("blockchain is already created")
+        throw("Rudechain is already created")
     else
         let gHeight = 0
-        let genesisBlock = "," + gHeight.toString() + "," + height.toString() + "," + toBase58String(i.callerPublicKey) + ",0,0"
-        WriteSet(
-            DataEntry(keyLast, genesisBlock)
-            ::DataEntry(keyHeight, gHeight)
-            ::DataEntry(keyBase, 1)
-            ::DataEntry(keyUtx, "")
-            ::DataEntry(keyUtxSize, 0)
-            ::nil
-        )
+        let genesisBlock = "0," + lastBlock.timestamp.toString() + "," + gHeight.toString() + "," + pubKey(i.callerPublicKey) + ",0,0,1,0"
+        WriteSet([
+            DataEntry(keyLast, genesisBlock),
+            DataEntry(keyHeight, gHeight),
+            DataEntry(keyUtx, ""),
+            DataEntry(keyUtxSize, 0)
+        ])
 }
 
 @Callable(i)
 func register(name: String) = {
-    let callerPubKey = i.callerPublicKey.toBase58String()
     let validChars = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-    if (!isDefined(i.payment) || isDefined(extract(i.payment).assetId) || extract(i.payment).amount != registrationCost * 100000000) then
+    if (!isDefined(i.payment) || isDefined(i.payment.extract().assetId) || i.payment.extract().amount != registrationCost * 100000000) then
         throw("Registration costs " + registrationCost.toString() + " Waves!")
-    else if !(size(name) > 0 && size(name) <= 8 && isDefined(indexOf(validChars, take(name, 1)))
-        && (if (size(name) > 1) then isDefined(indexOf(validChars, take(drop(name, 1), 1))) else true)
-        && (if (size(name) > 2) then isDefined(indexOf(validChars, take(drop(name, 2), 1))) else true)
-        && (if (size(name) > 3) then isDefined(indexOf(validChars, take(drop(name, 3), 1))) else true)
-        && (if (size(name) > 4) then isDefined(indexOf(validChars, take(drop(name, 4), 1))) else true)
-        && (if (size(name) > 5) then isDefined(indexOf(validChars, take(drop(name, 5), 1))) else true)
-        && (if (size(name) > 6) then isDefined(indexOf(validChars, take(drop(name, 6), 1))) else true)
-        && (if (size(name) > 7) then isDefined(indexOf(validChars, take(drop(name, 7), 1))) else true))
+    else if !(name.size() > 1 && name.size() <= 8 
+        && isDefined(validChars.indexOf(name.take(1)))
+        && isDefined(validChars.indexOf(name.drop(1).take(1)))
+        && (if (name.size() > 2) then isDefined(validChars.indexOf(name.drop(2).take(1))) else true)
+        && (if (name.size() > 3) then isDefined(validChars.indexOf(name.drop(3).take(1))) else true)
+        && (if (name.size() > 4) then isDefined(validChars.indexOf(name.drop(4).take(1))) else true)
+        && (if (name.size() > 5) then isDefined(validChars.indexOf(name.drop(5).take(1))) else true)
+        && (if (name.size() > 6) then isDefined(validChars.indexOf(name.drop(6).take(1))) else true)
+        && (if (name.size() > 7) then isDefined(validChars.indexOf(name.drop(7).take(1))) else true))
     then
-        throw("Account name must have [1..8] length and contain only [a-z0-9] chars")
+        throw("Account name must have [2..8] length and contain only [a-z0-9] chars")
     else if isRegistered(i.callerPublicKey) then
-        throw("Public key of the caller is already registered as '" + extract(accountOf(i.callerPublicKey)) + "'")
+        throw("Public key of the caller is already registered as '" + accountOf(i.callerPublicKey) + "'")
     else if isTaken(name) then
         throw("Account name '" + name + "' is already taken")
     else
         WriteSet([
-            DataEntry(keyPubKeyPrefix + i.callerPublicKey.toBase58String(), name),
+            DataEntry(keyPubKeyPrefix + pubKey(i.callerPublicKey), name),
             DataEntry(keyAccountPrefix + name, pubKey(i.callerPublicKey) + "," + h().toString() + "," + initBalance.toString() + "," + initBalance.toString())
         ])
 }
 
 @Callable(i)
-func mine(nonce: String) = {
-    let delta = height - h()
+func mine(nonce: Int) = {
+    let delta = lastBlock.height - blockReferenceHeight(-1)
+    let difficulty = blockDifficulty(-1)
+    let newDifficulty = if delta == 1 then difficulty + 2 else if delta == 2 || delta == 3 || difficulty == 1 then difficulty else difficulty - 1
+
+    let hash = blake2b256((
+        lastBlock.timestamp.toString()
+        + lastBlock.height.toString()
+        + i.callerPublicKey.toBase58String()
+        + nonce.toString()
+        + blockPrevHash(-1)
+    ).toBytes())
+
+    let byte0LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(1).toBase58String())
+    let byte1LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(2).takeRight(1).toBase58String())
+    let byte2LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(3).takeRight(1).toBase58String())
+    let byte3LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(4).takeRight(1).toBase58String())
+    let byte4LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(5).takeRight(1).toBase58String())
+    let byte5LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(6).takeRight(1).toBase58String())
+    let byte6LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(7).takeRight(1).toBase58String())
+    let byte7LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(8).takeRight(1).toBase58String())
+
+    let firstZeroBits = if byte0LeadingZeros != 8 then byte0LeadingZeros else ( 8 +
+                        if byte1LeadingZeros != 8 then byte1LeadingZeros else ( 8 +
+                        if byte2LeadingZeros != 8 then byte2LeadingZeros else ( 8 +
+                        if byte3LeadingZeros != 8 then byte3LeadingZeros else ( 8 +
+                        if byte4LeadingZeros != 8 then byte4LeadingZeros else ( 8 +
+                        if byte5LeadingZeros != 8 then byte5LeadingZeros else ( 8 +
+                        if byte6LeadingZeros != 8 then byte6LeadingZeros else ( 8 + 
+                                                        byte7LeadingZeros)))))))
 
     if i.caller == this then throw("The dApp can't mine!")
     else if !isRegistered(i.callerPublicKey) then throw("Miner must be registered!")
-    else if delta == 0 then throw("Can't mine on same reference height as last block: " + height.toString())
+    else if delta == 0 then throw("Can't mine on same reference height as last block: " + lastBlock.height.toString())
+    else if firstZeroBits < newDifficulty then throw("Hash has difficulty " + firstZeroBits.toString() + ", but at least " + newDifficulty.toString() + " is required")
     else
-        let minerAccount = extract(accountOf(i.callerPublicKey))
-        let nextHeight = h() + 1
-        let liquidBlock = h().toString() + blockReferenceHeight(-1).toString() + blockMinerPublicKey(-1) + blockPrevHash(-1) + blockGasReward(-1).toString() + blockTxs(-1)
-        let liquidBlockHash = sha256(liquidBlock.toBytes()).toBase58String()
+        let prevMinerAccount = blockMinerAccount(-1)
+        let newMinerAccount = accountOf(i.callerPublicKey)
+        let newHeight = h() + 1
+        let newBlock = hash.toBase58String()
+            + "," + lastBlock.timestamp.toString() 
+            + "," + lastBlock.height.toString() 
+            + "," + newMinerAccount 
+            + "," + nonce.toString() 
+            + "," + blockPrevHash(-1)
+            + "," + newDifficulty.toString()
+            + ",0"
 
         WriteSet([
-            DataEntry(keyAccountPrefix + minerAccount, pubKeyOf(minerAccount) + "," + regHeightOf(minerAccount).toString() + ","
-                + (totalBalanceOf(minerAccount) + blockGasReward(-1)).toString() + "," + (availableBalanceOf(minerAccount) + blockGasReward(-1)).toString())
-            , DataEntry(h().toString(), liquidBlockHash + blockInfo(-1))
-            , DataEntry(keyHeight, nextHeight)
-            , DataEntry(keyBase, base() + 1)
-            , DataEntry(keyLast, "," + nextHeight.toString() + "," + height.toString() + "," + toBase58String(i.callerPublicKey) + "," + liquidBlockHash + ",0")
+            DataEntry(keyHeight, newHeight),
+            DataEntry(keyAccountPrefix + prevMinerAccount, pubKeyOf(prevMinerAccount) + "," + regHeightOf(prevMinerAccount).toString() + "," 
+                + (totalBalanceOf(prevMinerAccount) + blockGasReward(-1)).toString() + "," + (availableBalanceOf(prevMinerAccount) + blockGasReward(-1)).toString()),
+            DataEntry(h().toString(), blockInfo(-1)),
+            DataEntry(keyAccountPrefix + newMinerAccount, pubKeyOf(newMinerAccount) + "," + regHeightOf(newMinerAccount).toString() + "," 
+                + (totalBalanceOf(newMinerAccount) + blockMinerReward).toString() + "," + (availableBalanceOf(newMinerAccount) + blockMinerReward).toString()),
+            DataEntry(keyLast, newBlock)
         ])
 }
 
 @Callable(i)
 func utxProcessing() = {
-    if i.callerPublicKey != blockMinerPublicKey(-1).fromBase58String() then throw("Only the current miner can processing UTX!")
-    else if getIntegerValue(this, keyUtxSize) == 0 then WriteSet([])
+    if i.callerPublicKey != pubKeyOf(blockMinerAccount(-1)).fromBase58String() then throw("Only the current miner can processing UTX!")
+    else if this.getIntegerValue(keyUtxSize) == 0 then WriteSet([])
     else
-        let utx = getStringValue(this, keyUtx)
-        let utxSize = getIntegerValue(this, keyUtxSize)
-        let marker = extract(indexOf(utx, ";"))
-        let tx = take(utx, marker)
+        let utx = this.getStringValue(keyUtx)
+        let utxSize = this.getIntegerValue(keyUtxSize)
+        let marker = utx.indexOf(";").extract()
+        let tx = utx.take(marker)
+        let txFields = tx.split(",")
 
-        let txSignature = take(tx, extract(indexOf(tx, ",")))
-        let txSenderPublicKey = { let raw = drop(tx, txSignature.size() + 1); take(raw, extract(indexOf(raw, ","))) }
-        let txGas = { let raw = drop(tx, txSignature.size() + txSenderPublicKey.size() + 2); take(raw, extract(indexOf(raw, ","))) }
-        let txScript = drop(tx, txSignature.size() + txSenderPublicKey.size() + txGas.size() + 3)
+        let txSenderAccount = txFields[0]
+        let txGas = txFields[1].parseIntValue()
+        let txScript = txFields[2]
 
-        let txSenderAcc = extract(accountOf(txSenderPublicKey.toBytes()))
-        let validation = validate(txSenderAcc, txGas.parseIntValue(), txScript, false)
+        let txSenderPubKey = pubKeyOf(txSenderAccount)
+        let validation = validate(txSenderPubKey, txGas, txScript, false)
         let costs = estimate(txScript)
 
-        if validation.size() > 0 then
-            WriteSet([DataEntry(keyUtxSize, utxSize - 1), DataEntry(keyUtx, drop(utx, marker + 1))])
+        if validation.size() > 0 then 
+            WriteSet([DataEntry(keyUtxSize, utxSize - 1), DataEntry(keyUtx, utx.drop(marker + 1))])
         else
+            let increasedReward = blockGasReward(-1) + costs[0]
+            let txs = if isDefined(blockInfo(-1).indexOf(";")) then ";" + blockTxs(-1) else ""
             WriteSet(
-                DataEntry(keyLast, "," + h().toString() + "," + blockReferenceHeight(-1).toString() + "," + blockMinerPublicKey(-1) + ","
-                    + blockPrevHash(-1) + "," + (blockGasReward(-1) + costs[0]).toString() + blockTxs(-1) + ";" + tx)
+                DataEntry(keyLast, blockHash(-1) + "," + blockTimestamp(-1).toString() + "," + blockReferenceHeight(-1).toString() + "," + blockMinerAccount(-1) + "," 
+                    + blockNonce(-1).toString() + "," + blockPrevHash(-1) + "," + blockDifficulty(-1).toString() + "," + increasedReward.toString() + txs + ";" + tx)
                 ::DataEntry(keyUtxSize, utxSize - 1)
-                ::DataEntry(keyUtx, drop(utx, marker + 1))
+                ::DataEntry(keyUtx, utx.drop(marker + 1))
                 ::evaluate(txScript)
-                ::DataEntry( keyAccountPrefix + txSenderAcc, txSenderPublicKey + "," + regHeightOf(txSenderAcc).toString() + ","
-                    + (totalBalanceOf(txSenderAcc) - costs[0] - costs[1]).toString() + ","
-                    + (availableBalanceOf(txSenderAcc) + txGas.parseIntValue() - costs[0]).toString() )
+                ::DataEntry( keyAccountPrefix + txSenderAccount, txSenderPubKey + "," + regHeightOf(txSenderAccount).toString() + "," 
+                    + (totalBalanceOf(txSenderAccount) - costs[0] - costs[1]).toString() + "," 
+                    + (availableBalanceOf(txSenderAccount) + txGas - costs[0]).toString() )
                 ::nil
             )
 }
 
 @Callable(i)
-func transaction(signatureBase64: String, gas: Int, script: String) = {
-    if i.caller == this then throw("The dApp can't send transactions!")
+func transaction(gas: Int, script: String) = {
+    if i.caller == this then throw("The Rudechain dApp can't send transactions!")
     else if !isRegistered(i.callerPublicKey) then throw("Only registered accounts can send transactions!")
-    else if !(getIntegerValue(this, keyUtxSize) < utxLimit) then throw("UTX size limit reached! Please try later")
+    else if this.getIntegerValue(keyUtxSize) == utxLimit then throw("UTX size limit reached! Please try later")
     else
-        let txBody = extract(accountOf(i.callerPublicKey)) + "," + gas.toString() + "," + script
-        let acc = extract(accountOf(i.callerPublicKey))
-        let validation = validate(acc, gas, script, true)
+        let sender = accountOf(i.callerPublicKey)
+        let txBody = sender + "," + gas.toString() + "," + script
+        let validation = validate(sender, gas, script, true)
         let costs = estimate(script)
         let reserved = costs[0] + costs[1]
 
         if validation.size() > 0 then throw(validation)
-        else if !sigVerify(txBody.toBytes(), signatureBase64.fromBase64String(), i.callerPublicKey) then throw("Incorrect signature!")
         else
-            let utxPool = getStringValue(this, keyUtx)
+            let utxPool = this.getStringValue(keyUtx)
             WriteSet([
-                DataEntry(keyUtx, utxPool + signatureBase64 + "," + txBody + ";"),
-                DataEntry(keyUtxSize, getIntegerValue(this, keyUtxSize) + 1),
-                DataEntry(keyAccountPrefix + acc, pubKeyOf(acc) + "," + regHeightOf(acc).toString() + "," + totalBalanceOf(acc).toString() + ","
-                    + (availableBalanceOf(acc) - reserved).toString())
+                DataEntry(keyUtx, utxPool + txBody + ";"),
+                DataEntry(keyUtxSize, this.getIntegerValue(keyUtxSize) + 1),
+                DataEntry(keyAccountPrefix + sender, pubKeyOf(sender) + "," + regHeightOf(sender).toString() + "," + totalBalanceOf(sender).toString() + "," 
+                    + (availableBalanceOf(sender) - reserved).toString())
             ])
 }
 
 @Verifier(tx)
 func verify() = {
     match tx {
-        case d:DataTransaction => false
-        case t:TransferTransaction => isDefined(t.assetId)
-        case _ => sigVerify(tx.bodyBytes, tx.proofs[0], dappPublicKey)
+        case d:DataTransaction => false # rudechain can be changed only via dApp actions
+        case _ => tx.bodyBytes.sigVerify(tx.proofs[0], dappPublicKey)
     }
 }
