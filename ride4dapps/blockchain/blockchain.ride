@@ -11,24 +11,78 @@ let keyLast = "last"
 let keyUtx = "utx"
 let keyUtxSize = "utx-size"
 
-let registrationCost = 5 # TODO CHECK!
+let registrationCost = 5
 let utxLimit = 100
 let blockMinerReward = 20
 let initBalance = 5
 
 func h() = getIntegerValue(this, keyHeight)
 
+# hash, timestamp, refHeight, minerAccount, nonce, prevHash, difficulty, gas
 func blockInfo(h: Int) = this.getStringValue(if h == -1 || h == h() then keyLast else h.toString())
-func blockHeaders(h: Int) = blockInfo(h).split(";")[0].split(",")
-
-func blockHash(h: Int) = blockHeaders(h)[0]
-func blockTimestamp(h: Int) = blockHeaders(h)[1].parseIntValue()
-func blockReferenceHeight(h: Int) = blockHeaders(h)[2].parseIntValue()
-func blockMinerAccount(h: Int) = blockHeaders(h)[3]
-func blockNonce(h: Int) = blockHeaders(h)[4].parseIntValue()
-func blockPrevHash(h: Int) = blockHeaders(h)[5]
-func blockDifficulty(h: Int) = blockHeaders(h)[6].parseIntValue()
-func blockGasReward(h: Int) = blockHeaders(h)[7].parseIntValue()
+func blockHash(h: Int) = {
+    let blInfo = blockInfo(h)
+    let right = blInfo.indexOf(",").extract()
+    blInfo.take(right)
+}
+func blockTimestamp(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",").extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left)
+}
+func blockReferenceHeight(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",", blInfo.indexOf(",").extract() + 1).extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left).parseIntValue()
+}
+func blockMinerAccount(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",", blInfo.indexOf(",", blInfo.indexOf(",").extract() + 1).extract() + 1).extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left)
+}
+func blockNonce(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",", blInfo.indexOf(",", blInfo.indexOf(",", blInfo.indexOf(",").extract() + 1).extract() + 1).extract() + 1).extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left)
+}
+func blockPrevHash(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",", 
+        blInfo.indexOf(",", 
+            blInfo.indexOf(",",
+                blInfo.indexOf(",",
+                    blInfo.indexOf(",").extract() + 1
+                ).extract() + 1
+            ).extract() + 1
+        ).extract() + 1
+    ).extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left)
+}
+func blockDifficulty(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",", 
+        blInfo.indexOf(",", 
+            blInfo.indexOf(",",
+                blInfo.indexOf(",",
+                    blInfo.indexOf(",",
+                        blInfo.indexOf(",").extract() + 1
+                    ).extract() + 1
+                ).extract() + 1
+            ).extract() + 1
+        ).extract() + 1
+    ).extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left).parseIntValue()
+}
+func blockGasReward(h: Int) = {
+    let blHeaders = blockInfo(h).split(";")[0].split(",")
+    blHeaders[7].parseIntValue()
+}
 func blockTxs(h: Int) = {
     let blInfo = blockInfo(h)
     let semicolon = blInfo.indexOf(";")
@@ -41,12 +95,31 @@ func pubKey(pk: ByteVector) = pk.toBase58String()
 func isRegistered(pK: ByteVector) = isDefined(this.getString(keyPubKeyPrefix + pubKey(pK)))
 func isTaken(name: String) = isDefined(this.getString(keyAccountPrefix + name))
 func accountOf(pK: ByteVector) = this.getStringValue(keyPubKeyPrefix + pubKey(pK))
-func accountInfo(name: String) = this.getStringValue(keyAccountPrefix + name).split(",")
+func accountInfo(name: String) = this.getStringValue(keyAccountPrefix + name)
 
-func pubKeyOf(account: String) = accountInfo(account)[0]
-func regHeightOf(account: String) = accountInfo(account)[1].parseIntValue()
-func totalBalanceOf(account: String) = accountInfo(account)[2].parseIntValue()
-func availableBalanceOf(account: String) = accountInfo(account)[3].parseIntValue()
+func pubKeyOf(account: String) = {
+    let accInfo = accountInfo(account)
+    let right = accInfo.indexOf(",").extract()
+    take(accInfo, right)
+}
+func regHeightOf(account: String) = {
+    let accInfo = accountInfo(account)
+    let left = accInfo.indexOf(",").extract() + 1
+    let right = accInfo.indexOf(",", left).extract()
+    accInfo.drop(left).take(right - left).parseIntValue()
+}
+func totalBalanceOf(account: String) = {
+    let accInfo = accountInfo(account)
+    let left = accInfo.indexOf(",", accInfo.indexOf(",").extract() + 1).extract() + 1
+    let right = accInfo.indexOf(",", left).extract()
+    accInfo.drop(left).take(right - left).parseIntValue()
+}
+func availableBalanceOf(account: String) = {
+    let accInfo = accountInfo(account)
+    let left = accInfo.indexOf(",", accInfo.indexOf(",", accInfo.indexOf(",").extract() + 1).extract() + 1).extract() + 1
+    let right = accInfo.size()
+    accInfo.drop(left).take(right - left).parseIntValue()
+}
 
 func estimate(script: String) = {
     let words = script.split(" ")
@@ -66,7 +139,7 @@ func evaluate(script: String) = {
     }
 
     if words[0] == "SEND" then
-        send(words[1], words[2].parseIntValue())
+        send(words[1].split(" ")[1], words[2].parseIntValue())
     else throw("can't evaluate script") # unreachable state because validated
 }
 
@@ -77,7 +150,7 @@ func validate(acc: String, gas: Int, script: String, checkBalance: Boolean) = {
         if words.size() != 3 then "SEND command expects args: recipient amount"
         else
             let gasRequired = estimate(script)[0]
-            let recipient = words[1]
+            let recipient = words[1].split(" ")[1]
             let amount = words[2].parseIntValue()
 
             if !isTaken(recipient) then "recipient '" + recipient + "' doesn't exist"
@@ -102,13 +175,18 @@ func genesis() = {
     then
         throw("Rudechain is already created")
     else
+        let minerName = "dapp"
         let gHeight = 0
-        let genesisBlock = "0," + lastBlock.timestamp.toString() + "," + gHeight.toString() + "," + pubKey(i.callerPublicKey) + ",0,0,1,0"
+        # hash, timestamp, refHeight, minerAccount, nonce, prevHash, difficulty, gas
+        let hash = (lastBlock.timestamp.toString() + lastBlock.height.toString() + minerName + "0").toBytes().blake2b256().toBase58String()
+        let genesisBlock = hash + "," + lastBlock.timestamp.toString() + "," + lastBlock.height.toString() + "," + minerName + ",0,0,1,0"
         WriteSet([
             DataEntry(keyLast, genesisBlock),
             DataEntry(keyHeight, gHeight),
             DataEntry(keyUtx, ""),
-            DataEntry(keyUtxSize, 0)
+            DataEntry(keyUtxSize, 0),
+            DataEntry(keyPubKeyPrefix + pubKey(dappPublicKey), "dapp"),
+            DataEntry(keyAccountPrefix + "dapp", pubKey(dappPublicKey) + "," + gHeight.toString() + ",0,0")
         ])
 }
 
@@ -149,7 +227,7 @@ func mine(nonce: Int) = {
     let hash = blake2b256((
         lastBlock.timestamp.toString()
         + lastBlock.height.toString()
-        + i.callerPublicKey.toBase58String()
+        + accountOf(i.callerPublicKey)
         + nonce.toString()
         + blockPrevHash(-1)
     ).toBytes())
@@ -202,17 +280,17 @@ func mine(nonce: Int) = {
 
 @Callable(i)
 func utxProcessing() = {
+    let utx = this.getStringValue(keyUtx)
+    let utxSize = this.getIntegerValue(keyUtxSize)
+
     if i.callerPublicKey != pubKeyOf(blockMinerAccount(-1)).fromBase58String() then throw("Only the current miner can processing UTX!")
-    else if this.getIntegerValue(keyUtxSize) == 0 then WriteSet([])
+    else if utxSize == 0 then WriteSet([])
     else
-        let utx = this.getStringValue(keyUtx)
-        let utxSize = this.getIntegerValue(keyUtxSize)
-        let marker = utx.indexOf(";").extract()
-        let tx = utx.take(marker)
+        let tx = utx.split(";")[0]
         let txFields = tx.split(",")
 
         let txSenderAccount = txFields[0]
-        let txGas = txFields[1].parseIntValue()
+        let txGas = txFields[1].split(",")[1].parseIntValue()
         let txScript = txFields[2]
 
         let txSenderPubKey = pubKeyOf(txSenderAccount)
@@ -220,21 +298,20 @@ func utxProcessing() = {
         let costs = estimate(txScript)
 
         if validation.size() > 0 then 
-            WriteSet([DataEntry(keyUtxSize, utxSize - 1), DataEntry(keyUtx, utx.drop(marker + 1))])
+            WriteSet([DataEntry(keyUtxSize, utxSize - 1), DataEntry(keyUtx, utx.drop(tx.size() + 1))])
         else
             let increasedReward = blockGasReward(-1) + costs[0]
             let txs = if isDefined(blockInfo(-1).indexOf(";")) then ";" + blockTxs(-1) else ""
-            WriteSet(
-                DataEntry(keyLast, blockHash(-1) + "," + blockTimestamp(-1).toString() + "," + blockReferenceHeight(-1).toString() + "," + blockMinerAccount(-1) + "," 
-                    + blockNonce(-1).toString() + "," + blockPrevHash(-1) + "," + blockDifficulty(-1).toString() + "," + increasedReward.toString() + txs + ";" + tx)
-                ::DataEntry(keyUtxSize, utxSize - 1)
-                ::DataEntry(keyUtx, utx.drop(marker + 1))
-                ::evaluate(txScript)
-                ::DataEntry( keyAccountPrefix + txSenderAccount, txSenderPubKey + "," + regHeightOf(txSenderAccount).toString() + "," 
+            WriteSet([
+                DataEntry(keyLast, blockHash(-1) + "," + blockTimestamp(-1) + "," + blockReferenceHeight(-1).toString() + "," + blockMinerAccount(-1) + "," 
+                    + blockNonce(-1) + "," + blockPrevHash(-1) + "," + blockDifficulty(-1).toString() + "," + increasedReward.toString() + txs + ";" + tx),
+                DataEntry(keyUtxSize, utxSize - 1),
+                DataEntry(keyUtx, utx.drop(tx.size() + 1)),
+                evaluate(txScript),
+                DataEntry( keyAccountPrefix + txSenderAccount, txSenderPubKey + "," + regHeightOf(txSenderAccount).toString() + "," 
                     + (totalBalanceOf(txSenderAccount) - costs[0] - costs[1]).toString() + "," 
                     + (availableBalanceOf(txSenderAccount) + txGas - costs[0]).toString() )
-                ::nil
-            )
+            ])
 }
 
 @Callable(i)
@@ -252,9 +329,11 @@ func transaction(gas: Int, script: String) = {
         if validation.size() > 0 then throw(validation)
         else
             let utxPool = this.getStringValue(keyUtx)
+            let utxSize = this.getIntegerValue(keyUtxSize)
+            let newUtxPool = if (utxSize > 0) then utxPool + ";" + txBody else txBody
             WriteSet([
-                DataEntry(keyUtx, utxPool + txBody + ";"),
-                DataEntry(keyUtxSize, this.getIntegerValue(keyUtxSize) + 1),
+                DataEntry(keyUtx, newUtxPool),
+                DataEntry(keyUtxSize, utxSize + 1),
                 DataEntry(keyAccountPrefix + sender, pubKeyOf(sender) + "," + regHeightOf(sender).toString() + "," + totalBalanceOf(sender).toString() + "," 
                     + (availableBalanceOf(sender) - reserved).toString())
             ])
