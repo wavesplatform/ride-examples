@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-57541906-4"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'UA-57541906-4');
+    </script>
+    <meta charset="UTF-8">
+    <title>Rudechain</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+
+<div id="app">
+    <v-app>
+        <v-content><v-container fill-height grid-list-md>
+            <v-layout row justify-center fill-height>
+                <v-flex md3>
+                    <v-layout column>
+                        <v-flex md12>
+
+                            <v-card color="blue-grey lighten-5">
+                                <v-card-title primary class="title">RUDECHAIN</v-card-title>
+                                <v-card-text>
+                                    <v-subheader>General Info</v-subheader>
+                                    <ul>
+                                        <li>Height: <b>{{height}}</b></li>
+                                        <li>Waves height: <b>{{wavesHeight}}</b></li>
+                                        <li>Difficulty: <b>{{base}}</b></li>
+                                    </ul>
+                                </v-card-text>
+                            </v-card>
+
+                        </v-flex>
+                        <v-flex md12>
+
+                            <v-card color="blue-grey lighten-4">
+                                <v-card-title primary class="title">ACCOUNT</v-card-title>
+                                <v-card-text v-if="isAuthenticated && isRegistered">
+                                    <v-subheader>Account Info</v-subheader>
+                                    <ul>
+                                        <li>Name: <b>{{user.name}}</b></li>
+                                        <li>Total balance: <b>{{user.totalBalance}}</b></li>
+                                        <li>Available balance: <b>{{user.availableBalance}}</b></li>
+                                        <li>Asset balance in Waves: <b>{{user.assetBalance}}</b></li>
+                                        <li>Registered at <b>{{user.registrationHeight}}</b> Waves height</li>
+                                    </ul>
+                                    <v-divider></v-divider>
+                                    <v-subheader>Create Transaction</v-subheader>
+                                    <v-form><v-container><v-layout wrap>
+                                        <v-flex md12>
+                                            <v-text-field label="Script" hint="example: SEND dapp 1" persistent-hint v-model="txScript"/>
+                                        </v-flex>
+                                        <v-flex md4>
+                                            <v-text-field label="Gas" type="number" v-model.number="txGas"/>
+                                        </v-flex>
+                                        <v-flex md6>
+                                            <v-btn color="success" @click="signAndSend">Sign and send</v-btn>
+                                        </v-flex>
+                                    </v-layout></v-container></v-form>
+                                </v-card-text>
+                                <v-card-text v-else-if="isAuthenticated && !isRegistered">
+                                    Please register to be able to mine blocks and send transactions
+                                    <v-form><v-container><v-layout wrap>
+                                        <v-flex md12>
+                                            <v-text-field label="Account name" counter="8" hint="[0-9a-z], 2-8 symbols" v-model="newAccountName" />
+                                        </v-flex>
+                                        <v-flex md6>
+                                            <v-btn @click="register">Register</v-btn>
+                                        </v-flex>
+                                    </v-layout></v-container></v-form>
+                                </v-card-text>
+                                <v-card-text v-else>
+                                    <h3>You're not logged in</h3>
+                                    <v-btn @click="auth">Auth</v-btn>
+                                </v-card-text>
+                            </v-card>
+
+                        </v-flex>
+                    </v-layout>
+                </v-flex>
+                <v-flex md3>
+
+                    <h1>UTX ({{ utxSize }})</h1>
+                    <v-list two-line v-if="utxSize > 0"><v-list-tile v-for="tx in utx">
+                        <v-list-tile-content>
+                            <v-list-tile-title><code>{{ tx.script }}</code></v-list-tile-title>
+                            <v-list-tile-sub-title>Sender: <b>{{ tx.sender }}</b></v-list-tile-sub-title>
+                        </v-list-tile-content>
+                        <v-list-tile-action>
+                            <v-list-tile-action-text><b>{{ tx.gas }}</b> gas</v-list-tile-action-text>
+                        </v-list-tile-action>
+                    </v-list-tile></v-list>
+
+                </v-flex>
+                <v-divider vertical></v-divider>
+                <v-flex md6>
+
+                    <h1>Blocks (last {{blocksLimit}})</h1>
+                    <v-list><v-list-tile v-for="block in blocks">
+                        <v-list-tile-content>
+                            <v-list-tile-title>
+                                Block <b>{{block.height}}</b> is mined by <b>{{block.miner}}</b>
+                                with <b>{{block.txs.length}}</b> txs and <b>{{block.gas}}</b> gas
+                            </v-list-tile-title>
+                            <v-list-tile-sub-title>hash: <span class="text-truncate">{{ block.hash }}</span></v-list-tile-sub-title>
+                        </v-list-tile-content>
+                        <v-list-tile-action>
+                            <v-list-tile-action-text>{{ block.refHeight }}</v-list-tile-action-text>
+                            <v-list-tile-action-text>{{ block.timestamp }}</v-list-tile-action-text>
+                        </v-list-tile-action>
+                    </v-list-tile></v-list>
+
+                </v-flex>
+            </v-layout>
+        </v-container></v-content>
+        <v-footer app><a href="https://github.com/wavesplatform/ride-examples/pull/28">Github</a></v-footer>
+    </v-app>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.js"></script>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            node: 'https://testnode4.wavesnodes.com/',
+            dappAddress: '3N2BSBNwXaSm8ZQs6TW7KhwNJp6vu4HEQqz',
+            assetId: '',
+            keeperState: {},
+
+            isAuthenticated: false,
+            isRegistered: false,
+            user: {name: '', address: '', address: '', registrationHeight: -1, totalBalance: -1, availableBalance: -1, assetBalance: -1},
+            newAccountName: '',
+
+            height: '',
+            utxSize: '',
+            utx: [],
+            wavesHeight: '',
+            lastBlock: {},
+            rawBlocks: [],
+            blocksLimit: 20,
+
+            txScript: '',
+            txGas: 1,
+
+            timer: ''
+        },
+        computed: {
+            base: function () {
+                let delta = this.wavesHeight - this.lastBlock.refHeight
+                if (delta == 1) return +this.lastBlock.difficulty + 3
+                else if ([2, 3].includes(delta) || this.lastBlock.difficulty == 1) return +this.lastBlock.difficulty + 1
+                else return +this.lastBlock.difficulty - (delta / 2)
+            },
+            blocks: function() {
+                return this.rawBlocks.slice().sort((a, b) => a.height < b.height)
+            }
+        },
+        methods: {
+            auth: function() {
+                WavesKeeper.initialPromise
+                    .then((keeperApi) => {
+                        keeperApi.publicState().then(state => {
+                            this.keeperState = state;
+
+                            WavesKeeper.auth({ name: 'Rudechain', data: "Please log in to be able to send transactions." })
+                                .then(auth => {
+                                    this.isAuthenticated = true
+
+                                    /*if (this.keeperState.locked) {
+                                        this.authStatus = 'please enter password in Keeper'
+                                    } else {*/
+                                    axios.get(this.node + 'addresses/data/' + this.dappAddress
+                                            + '/$' + this.keeperState.account.address)
+                                        .then(response => {
+                                            this.user.name = response.data.value
+                                            this.isRegistered = true
+                                        })
+                                    //}
+                                }).catch(error => {
+                                    console.error(error);
+                                })
+                        }).catch(error => {
+                            console.error(error);
+                        });
+                    });
+            },
+            register: function() {
+                const txInvokeScript = {
+                    type: 16,
+                    data: {
+                        fee: {
+                            assetId: "WAVES",
+                            tokens: "0.005"
+                        },
+                        dappAddress: this.dappAddress,
+                        dApp: this.dappAddress,
+                        call: {
+                            function: 'register',
+                            args: [
+                                {type: 'string', value: this.newAccountName}
+                            ]
+                        },
+                        payment: [{tokens: 1, assetId: "WAVES"}]
+                    }
+                };
+                WavesKeeper.signAndPublishTransaction(txInvokeScript).then((inv) => {
+                    this.isRegistered = true
+                    this.user.name = this.newAccountName
+                    WavesKeeper.notification({
+                        title: 'Hi, ' + this.newAccountName + "!",
+                        message: "Now you can mine blocks and send transactions to Rudechain!"
+                    });
+                }).catch((error) => {
+                    console.error(error)
+                });
+            },
+            signAndSend: function() {
+                let words = this.txScript.split(' ')
+                let pmt = words[0] == "SWAP" && words[1] == "IN" ? [{amount: +words[2], assetId: this.assetId}] : []
+                const txInvokeScript = {
+                    type: 16,
+                    data: {
+                        fee: {
+                            assetId: "WAVES",
+                            tokens: "0.005"
+                        },
+                        dappAddress: this.dappAddress,
+                        dApp: this.dappAddress,
+                        call: {
+                            function: 'transaction',
+                            args: [
+                                {type: 'integer', value: this.txGas},
+                                {type: 'string', value: this.txScript}
+                            ]
+                        },
+                        payment: pmt
+                    }
+                };
+                WavesKeeper.signAndPublishTransaction(txInvokeScript).then((inv) => {
+                    console.log('done: ' + this.txScript)
+                }).catch((error) => {
+                    console.error(error)
+                });
+            },
+            updateBlockchainInfo: function() {
+                function newBlockFrom(str, height) {
+                    let raw = str.data.value.split(";")
+                    let headers = raw[0].split(",")
+                    let block = {
+                        height: height, hash: headers[0], timestamp: new Date(+headers[1]).toLocaleString(), refHeight: headers[2],
+                        miner: headers[3], nonce: headers[4], prevHash: headers[5], difficulty: headers[6],
+                        gas: headers[7], txs: []
+                    }
+                    if (raw.length > 0) {
+                        let txs = raw.slice(1)
+                        for (let tx of txs) {
+                            let t = tx.split(',')
+                            block.txs.push({sender: t[0], gas: t[1], script: t[2]})
+                        }
+                    }
+                    return block;
+                }
+                axios.get(this.node + 'addresses/data/' + this.dappAddress + '/height')
+                    .then(response => {
+                        let h = response.data.value
+                        this.height = h
+
+                        axios.get(this.node + 'addresses/data/' + this.dappAddress + '/' + 'last')
+                            .then(response => {
+                                let block = newBlockFrom(response, h)
+                                let indexOfLast = this.rawBlocks.length == 0 ? -1 : this.rawBlocks.map(b => b.height).indexOf(h)
+                                if (indexOfLast > -1) {
+                                    this.rawBlocks[indexOfLast] = block
+                                } else {
+                                    this.rawBlocks.push(block)
+                                    if (this.rawBlocks.length > 20)
+                                        for (let i = 0; i < this.rawBlocks.length - 20; i++)
+                                            this.rawBlocks.sort((a, b) => a.height < b.height).shift()
+                                }
+                                this.lastBlock = block
+                            })
+
+                        if (h > 0) {
+                            axios.get(this.node + 'addresses/data/' + this.dappAddress + '/' + (h - 1))
+                                .then(response => {
+                                    let block = newBlockFrom(response, h - 1)
+                                    let indexOfPrev = this.rawBlocks.length == 0 ? -1 : this.rawBlocks.map(b => b.height).indexOf(h - 1)
+                                    if (indexOfPrev > -1) {
+                                        this.rawBlocks[indexOfPrev] = block
+                                    } else {
+                                        this.rawBlocks.push(block)
+                                    }
+                                })
+                        }
+
+                        if (h > 1) {
+                            let to = h - this.blocksLimit
+                            if (to < 0) to = 0
+                            for (let i = h - 2; i >= to; i--) {
+                                if (!this.rawBlocks.some(b => b.height == i)) {
+                                    axios.get(this.node + 'addresses/data/' + this.dappAddress + '/' + i)
+                                        .then(response => this.rawBlocks.push(newBlockFrom(response, i)))
+                                }
+                            }
+                        }
+                    })
+                axios.get(this.node + 'addresses/data/' + this.dappAddress + '/utx-size')
+                    .then(response => this.utxSize = response.data.value)
+                axios.get(this.node + 'addresses/data/' + this.dappAddress + '/utx')
+                    .then(response => {
+                        let strs = response.data.value.split(";")
+                        let txs = []
+                        strs.forEach(s => {
+                            let tx = s.split(',')
+                            txs.push({sender: tx[0], gas: tx[1], script: tx[2]})
+                        })
+                        this.utx = txs
+                    })
+                axios.get(this.node + 'blocks/height')
+                    .then(response => this.wavesHeight = response.data.height)
+
+                if (this.isRegistered) {
+                    axios.get(this.node + 'addresses/data/' + this.dappAddress + '/@' + this.user.name)
+                        .then(response => {
+                            let fields = response.data.value.split(',')
+                            this.user.address = fields[0]
+                            this.user.registrationHeight = fields[1]
+                            this.user.totalBalance = fields[2]
+                            this.user.availableBalance = fields[3]
+
+                            axios.get(this.node + 'assets/balance/' + this.user.address + '/' + this.assetId)
+                                .then(response => this.user.assetBalance = response.data.balance)
+                        })
+                }
+            }
+        },
+        created: function() {
+            axios.get(this.node + 'addresses/data/' + this.dappAddress + '/assetId')
+                .then(response => {
+                    this.assetId = response.data.value
+                    this.updateBlockchainInfo()
+                })
+        },
+        mounted: function() {
+            this.timer = setInterval(this.updateBlockchainInfo, 3000)
+        },
+        beforeDestroy: function () {
+            clearInterval(this.timer)
+        }
+    })
+</script>
+</body>
+</html>
