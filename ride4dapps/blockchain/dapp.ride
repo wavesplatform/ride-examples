@@ -131,7 +131,8 @@ func estimate(script: String) = {
         [gasRequired, amount]
     else if words[0] == "SWAP" then
         let gasRequired = 2
-        let amount = words[2].parseIntValue()
+        let direction = words[1].split(" ")[1]
+        let amount = if direction == "IN" then 0 else words[2].parseIntValue()
         [gasRequired, amount]
     else [1000000, 0] # unreachable state because validated
 }
@@ -214,8 +215,6 @@ func validate(acc: String, gas: Int, script: String, inv: Invocation, checkBalan
                 else if checkBalance && availableBalanceOf(acc) < gas + amount then "Not enough available balance for SWAP and gas"
                 else ""
             else "Argument \"direction\" must be \"IN\" or \"OUT\""
-            # balance in, balance out
-            # gas req, gas attached
     else
         "unknown command " + words[0]
 }
@@ -373,7 +372,7 @@ func utxProcessing() = {
                     ::DataEntry(keyUtx, utx.drop(tx.size() + 1))
                     ::DataEntry( keyAccountPrefix + txSenderAccount, txSender + "," + regHeightOf(txSenderAccount).toString() + ","
                         + (totalBalanceOf(txSenderAccount) - costs[0] - costs[1]).toString() + ","
-                        + (availableBalanceOf(txSenderAccount) + txGas - costs[0]).toString() )
+                        + (availableBalanceOf(txSenderAccount) - costs[0] + txGas).toString() )
                     ::result.data.data
                 ),
                 TransferSet(result.transfers.transfers)

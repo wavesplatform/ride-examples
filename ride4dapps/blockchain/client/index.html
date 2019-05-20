@@ -51,7 +51,7 @@
                                         <li>Total balance: <b>{{user.totalBalance}}</b></li>
                                         <li>Available balance: <b>{{user.availableBalance}}</b></li>
                                         <li>Asset balance in Waves: <b>{{user.assetBalance}}</b></li>
-                                        <li>Registered at <b>{{user.registrationHeight}}</b> Waves height</li>
+                                        <li>Registered at height: <b>{{user.registrationHeight}}</b></li>
                                     </ul>
                                     <v-divider></v-divider>
                                     <v-subheader>Create Transaction</v-subheader>
@@ -132,7 +132,7 @@
         el: '#app',
         data: {
             node: 'https://testnode4.wavesnodes.com/',
-            dappAddress: '3N2BSBNwXaSm8ZQs6TW7KhwNJp6vu4HEQqz',
+            dappAddress: '3MwgRB2FJzbquEZEnySc2jwhpaZnoWvCMJX',
             assetId: '',
             keeperState: {},
 
@@ -210,7 +210,7 @@
                                 {type: 'string', value: this.newAccountName}
                             ]
                         },
-                        payment: [{tokens: 1, assetId: "WAVES"}]
+                        payment: [{tokens: 5, assetId: "WAVES"}]
                     }
                 };
                 WavesKeeper.signAndPublishTransaction(txInvokeScript).then((inv) => {

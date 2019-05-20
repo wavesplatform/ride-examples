@@ -9,6 +9,7 @@
 
 out/
 target/
+*.jar
 
 seed.conf
 
