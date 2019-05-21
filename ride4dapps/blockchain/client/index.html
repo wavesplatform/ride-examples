@@ -162,7 +162,7 @@
                 else return +this.lastBlock.difficulty - (delta / 2)
             },
             blocks: function() {
-                return this.rawBlocks.slice().sort((a, b) => a.height < b.height)
+                return this.rawBlocks.slice().sort((a, b) => b.height - a.height)
             }
         },
         methods: {
