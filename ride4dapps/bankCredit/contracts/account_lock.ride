@@ -4,7 +4,7 @@
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
 
-# Banp dApp address
+# Bank dApp address
 let BANK = base58'3MpFRn3X9ZqcLimFoqNeZwPBnwP7Br5Fmgs'
 
 
@@ -20,13 +20,13 @@ let status = match( getString(Address(BANK), toBase58String(tx.sender.bytes) + "
 # If it is time to pay and money has been borrowed and not returned, we only allow InvokeScript on bank dApp. Anyone can call this dapp
 if (height > TARGETHEIGHT && status == "borrowed") then {
     match (tx){
-        case t: InvokeScriptTransaction => t.dappAddress.bytes == BANK
+        case t: InvokeScriptTransaction => addressFromRecipient(t.dApp).bytes == BANK
         case _ => false
     }
 # Otherwise if returned allow all
 }else if(status == "returned" || status == "canceled") then {
     sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
-# In any other case forbit SetScript
+# In any other case forbid SetScript
 }else {
     match (tx){
         case t: SetScriptTransaction => false

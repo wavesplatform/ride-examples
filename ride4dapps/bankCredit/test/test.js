@@ -1,4 +1,4 @@
-const nonce = 4
+const nonce = 6
 const masterSeed = "master seed for my tests"
 const bank = "myBankDappAcc" + nonce
 const paymentAmount = 50000000
@@ -8,8 +8,8 @@ const customer = "customer acc bla" + nonce
 const customerAddress = address(customer)
 const compiledLock = compile(file('account_lock.ride'))
 
-// You can define test suites with 'describe' syntax
 describe('Bank Dapp test Suite', () => {
+
     before(async() => {
         const mtTx= massTransfer({transfers:[
                 {amount: 60000000, recipient: bankAddress},
@@ -29,7 +29,7 @@ describe('Bank Dapp test Suite', () => {
     it('Bank approves credit for customer', async function(){
         const invTx = invokeScript({
             additionalFee: 500000,
-            dappAddress: bankAddress,
+            dApp: bankAddress,
             call: {
                 function: "approveCredit",
                 args: [{
@@ -55,7 +55,7 @@ describe('Bank Dapp test Suite', () => {
     it('Customer fails to get money without lock', async function(){
         const invTx = invokeScript({
                 additionalFee: 500000,
-                dappAddress: bankAddress,
+                dApp: bankAddress,
                 call: {
                     function: "getMoney",
                     args: [{
@@ -75,14 +75,14 @@ describe('Bank Dapp test Suite', () => {
 //     })
 
     it('Customer sets lock and gets money', async function(){
-
+        this.timeout(0)
         const ssCustomerTx = setScript({script:compiledLock}, customer )
         await broadcast(ssCustomerTx)
         await waitForTx(ssCustomerTx.id)
 
         const invTx = invokeScript({
             additionalFee: 500000,
-            dappAddress: bankAddress,
+            dApp: bankAddress,
             call: {
                 function: "getMoney",
                 args: [{
@@ -96,10 +96,10 @@ describe('Bank Dapp test Suite', () => {
     })
 
     it('Customer returns money', async function(){
-
+        this.timeout(0)
         const invTx = invokeScript({
             additionalFee: 500000,
-            dappAddress: bankAddress,
+            dApp: bankAddress,
             call: {
                 function: "returnMoney",
                 args: []
