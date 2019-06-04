@@ -1,0 +1,89 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func approveCredit(client: String, amount: Int, target: Int, lockHash: ByteVector) = {
+    if (this == i.caller && !isDefined(getBoolean(this, client + "_status"))) then {
+        WriteSet([
+            DataEntry(client + "_status", "approved"),
+            DataEntry(client + "_amount", amount),
+            DataEntry(client + "_target", target),
+            DataEntry(client + "_lockScript", lockHash)
+        ])
+    }else {
+        throw("Credit for " + client + " has already been approved or caller is not dApp owner")
+    }
+
+}
+
+@Callable(i)
+func getMoney(txId: String) = {
+
+    let callerStr = toBase58String(i.caller.bytes)
+
+    let status = match( this.getString(callerStr + "_status")){
+        case x: Unit => "unset"
+        case x: String => x
+    }
+
+    let lockTx = transactionById(fromBase58String(txId))
+
+    let isLockSet = match (lockTx) {
+        case t: SetScriptTransaction => t.sender == i.caller && t.script == this.getBinary(callerStr + "_lockScript").extract()
+        case _ => throw("Lock has not been set")
+    }
+
+    let amount = this.getInteger(callerStr + "_amount").extract()
+
+    if (status == "approved" && isLockSet) then {
+        ScriptResult(
+            WriteSet([
+                DataEntry(callerStr + "_status", "borrowed")
+            ]),
+            TransferSet([ScriptTransfer(i.caller, amount, unit)])
+        )
+    }else throw("Credit was not approved or money has already been taken")
+
+}
+
+@Callable(i)
+func returnMoney() = {
+    let callerStr = toBase58String(i.caller.bytes)
+    let status = match( this.getString(callerStr + "_status")){
+        case x: Unit => "unset"
+        case x: String => x
+    }
+
+    let pmt = extract(i.payment)
+
+    let amountToReturn = getInteger(this, callerStr + "_amount")
+    if(status != "borrowed") then throw("Cannot return, nothing was borrowed")
+    else if (isDefined(pmt.assetId)) then throw("Can return only WAVES at the moment")
+    else if (amountToReturn != pmt.amount) then throw("Should return borrowed amount")
+    else {
+        WriteSet([
+            DataEntry(callerStr + "_status", "returned")
+        ])
+    }
+}
+
+@Callable(i)
+func cancelContract() = {
+    let callerStr = toBase58String(i.caller.bytes)
+    let status = match( this.getString(callerStr + "_status")){
+        case x: Unit => "unset"
+        case x: String => x
+    }
+    if(status == "approved" || status == "unset") then WriteSet([DataEntry(callerStr + "_status", "canceled")])
+    else {throw("Cannot cancel credit. Money has already been taken")}
+}
+
+@Verifier(tx)
+func verify() = {
+    match(tx) {
+        case t:DataTransaction => false
+        case t:SetScriptTransaction => false
+        case _ => sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+    }
+}

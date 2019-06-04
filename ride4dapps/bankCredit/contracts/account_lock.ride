@@ -1,0 +1,37 @@
+# This is LOCK script. Customer has to set this script to his account to be able to get money from the bank
+
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# Bank dApp address
+let BANK = base58'3MpFRn3X9ZqcLimFoqNeZwPBnwP7Br5Fmgs'
+
+
+let TARGETHEIGHT = match( getInteger(Address(BANK), toBase58String(tx.sender.bytes) + "_target")){
+    case x: Unit => 0
+    case x: Int => x
+}
+let status = match( getString(Address(BANK), toBase58String(tx.sender.bytes) + "_status")){
+    case x: Unit => "unset"
+    case x: String => x
+}
+
+# If it is time to pay and money has been borrowed and not returned, we only allow InvokeScript on bank dApp. Anyone can call this dapp
+if (height > TARGETHEIGHT && status == "borrowed") then {
+    match (tx){
+        case t: InvokeScriptTransaction => addressFromRecipient(t.dApp).bytes == BANK
+        case _ => false
+    }
+# Otherwise if returned allow all
+}else if(status == "returned" || status == "canceled") then {
+    sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+# In any other case forbid SetScript
+}else {
+    match (tx){
+        case t: SetScriptTransaction => false
+        case _ => sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+    }
+}
+
+
