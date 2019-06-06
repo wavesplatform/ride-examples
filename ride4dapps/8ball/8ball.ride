@@ -3,9 +3,9 @@
 {-# SCRIPT_TYPE ACCOUNT #-}
 
 #
-# Waves DApp version of famous Magic 8 ball toy!
+# Waves dApp version of famous Magic 8 ball toy!
 # Function name: tellme(question: String)
-# Question and answer will be written to DApp data state
+# Question and answer will be written to dApp data state
 #
 # Example on Testnet: 3N27HUMt4ddx2X7foQwZRmpFzg5PSzLrUgU
 #
