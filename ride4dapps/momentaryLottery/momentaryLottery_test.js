@@ -1,5 +1,7 @@
 //
 // Momentary Lottery tests
+// Tests will run from current IDE account
+// Account should have at lease 5 Waves and at least 0.01 non Waves tokens
 //
 
 describe('Momentary Lotto', () => {
