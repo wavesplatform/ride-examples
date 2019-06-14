@@ -1,0 +1,60 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+#
+# Momentary Lottery fully on blockchain.
+# Win chance is 50/50 with pay rate 1.9x
+# Function name: lotto() or Default function
+# Payment: Any amount in Waves
+#
+# Example on Testnet: 3Mu5kasZ85VY5xUCpPYoWr6fBzh6eGZwcnt
+#
+
+
+#
+# Pseudorandom generator fully based on blockchain state
+#
+func randomizer(inv: Invocation) = {
+    let lastPlay = match getBinary(this, "lastPlay") {
+        case s:ByteVector => s
+        case a:Unit => base64'V2F2ZXNMb3R0b1Yy'
+    }
+
+    let rand = lastPlay + inv.transactionId + inv.callerPublicKey + lastBlock.generationSignature + toBytes(lastBlock.timestamp) + toBytes(lastBlock.height)
+    sha256(rand)
+}
+
+func startLotto(inv: Invocation) = {
+    let playLimit = wavesBalance(this) / 100
+    let payment = extract(inv.payment)
+
+    if(!isDefined(inv.payment)) then {
+        throw("Should be with Payment in Waves")
+    } else if (isDefined(payment.assetId)) then {
+        throw("Payment should be in Waves")
+    } else if (payment.amount > playLimit) then {
+        throw("Payment should be less than " + toString(playLimit))
+    } else {
+
+        let randhash = randomizer(inv)
+        let winTransfer = TransferSet([ScriptTransfer(inv.caller, payment.amount * 190 / 100, unit)])
+        let writeLastPlay = WriteSet([DataEntry("lastPlay", randhash)])
+
+        if(randhash.toInt() % 1000 < 500) then {
+            ScriptResult(writeLastPlay, winTransfer)
+        } else {
+            ScriptResult(writeLastPlay, TransferSet([]))
+        }
+    }
+}
+
+@Callable(inv)
+func lotto() = {
+    startLotto(inv)
+}
+
+@Callable(inv)
+func default() = {
+    startLotto(inv)
+}
