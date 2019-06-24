@@ -1,40 +1,48 @@
-const nonce = 6
-const masterSeed = "master seed for my tests"
-const bank = "myBankDappAcc" + nonce
-const paymentAmount = 50000000
-const bankAddress = address(bank)
-const compiledDApp = compile(file('bank_dapp.ride'))
-const customer = "customer acc bla" + nonce
-const customerAddress = address(customer)
-const compiledLock = compile(file('account_lock.ride'))
-
+// const nonce = 6
+// const masterSeed = "master seed for my tests"
+// const bank = "myBankDappAcc" + nonce
+// const paymentAmount = 50000000
+// const bankAddress = address(bank)
+// const compiledDApp = compile(file('bank_dapp.ride'))
+// const customer = "customer acc bla" + nonce
+// const customerAddress = address(customer)
+// const compiledLock = compile(file('account_lock.ride'))
+const wvs = 10 ** 8
 describe('Bank Dapp test Suite', () => {
 
-    before(async() => {
-        const mtTx= massTransfer({transfers:[
-                {amount: 60000000, recipient: bankAddress},
-                {amount: 60000000, recipient: customerAddress}
-            ]}, masterSeed)
-        await broadcast(mtTx)
-        await waitForTx
-    })
+    let lockTx;
+    let removeLockTx;
+    let paymentAmount = 0.4 * wvs
 
-    it('Sets bank script', async function(){
-        const ssBankTx = setScript({script:compiledDApp}, bank )
+    before(async function() {
+        this.timeout(0);
 
-        await broadcast(ssBankTx)
-        await waitForTx(ssBankTx.id)
+        await setupAccounts({bank: 0.5 * wvs, client: 0.1 * wvs});
+
+        const compiledDapp = compile(file('bank_dapp.ride'))
+        const bankAddress = address(accounts.bank)
+        const lockScript = file('account_lock.ride')
+            .replace(`base58'3MpFRn3X9ZqcLimFoqNeZwPBnwP7Br5Fmgs'`, `base58'${bankAddress}'`)
+
+        const compiledLock = compile(lockScript)
+
+        lockTx = setScript({script: compiledLock}, accounts.client)
+        removeLockTx = setScript({script: null, additionalFee: 400000}, accounts.client)
+        const dAppTx = setScript({script: compiledDapp}, accounts.bank)
+        await broadcast(dAppTx)
+        await waitForTx(dAppTx.id)
+        console.log('Scrips were deployed')
     })
 
     it('Bank approves credit for customer', async function(){
         const invTx = invokeScript({
-            additionalFee: 500000,
-            dApp: bankAddress,
+            additionalFee: 400000,
+            dApp: address(accounts.bank),
             call: {
                 function: "approveCredit",
                 args: [{
                     type: "string",
-                    value: customerAddress
+                    value: address(accounts.client)
                 }, {
                     type: "integer",
                     value: paymentAmount
@@ -42,11 +50,11 @@ describe('Bank Dapp test Suite', () => {
                     type: "integer",
                     value: 0
                 }, {
-                    type: "binary",
-                    value: compiledLock
+                    type: "string",
+                    value: lockTx.id
                 }]
             }
-        }, bank)
+        }, accounts.bank)
 
         await broadcast(invTx)
         await waitForTx(invTx.id)
@@ -55,51 +63,40 @@ describe('Bank Dapp test Suite', () => {
     it('Customer fails to get money without lock', async function(){
         const invTx = invokeScript({
                 additionalFee: 500000,
-                dApp: bankAddress,
+                dApp: address(accounts.bank),
                 call: {
-                    function: "getMoney",
-                    args: [{
-                        type: "string",
-                        value: "3MpFRn3X9ZqcLimFoqNeZwPBnwP7Br5Fmgs"
-                    }]
+                    function: "getMoney"
                 }
-            }, customer
-        )
+            }, accounts.client)
         await expect(broadcast(invTx)).rejectedWith()
     })
 
-//    it('Customer sets lock', async function(){
-//         const ssCustomerTx = setScript({script:compiledLock}, customer )
-//         await broadcast(ssCustomerTx)
-//         await waitForTx(ssCustomerTx.id)
-//     })
-
     it('Customer sets lock and gets money', async function(){
         this.timeout(0)
-        const ssCustomerTx = setScript({script:compiledLock}, customer )
-        await broadcast(ssCustomerTx)
-        await waitForTx(ssCustomerTx.id)
+
+        await broadcast(lockTx)
+        await waitForTx(lockTx.id, {timeout: 1000000})
 
         const invTx = invokeScript({
             additionalFee: 500000,
-            dApp: bankAddress,
+            dApp: address(accounts.bank),
             call: {
-                function: "getMoney",
-                args: [{
-                    type: "string",
-                    value: ssCustomerTx.id
-                }]
+                function: "getMoney"
             }
-        }, customer)
+        }, accounts.client)
         await broadcast(invTx)
-        await waitForTx(invTx.id)
+        await waitForTx(invTx.id, {timeout: 1000000})
     })
 
-    it('Customer returns money', async function(){
+    it('Customer fails to remove lock', async function(){
+        await expect(broadcast(removeLockTx)).rejectedWith()
+    })
+
+    it('Customer returns money and removes lock from his account', async function(){
         this.timeout(0)
         const invTx = invokeScript({
             additionalFee: 500000,
-            dApp: bankAddress,
+            dApp: address(accounts.bank),
             call: {
                 function: "returnMoney",
                 args: []
@@ -107,9 +104,10 @@ describe('Bank Dapp test Suite', () => {
             payment:[{
                 amount: paymentAmount
             }]
-        }, customer)
-        console.log(await broadcast(invTx))
-        await waitForTx(invTx.id)
+        }, accounts.client)
+        await broadcast(invTx);
+        await waitForTx(invTx.id, {timeout: 1000000});
+        await broadcast(removeLockTx)
     })
 })
 

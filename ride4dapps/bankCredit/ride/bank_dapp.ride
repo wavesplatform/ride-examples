@@ -9,7 +9,7 @@ func approveCredit(client: String, amount: Int, target: Int, lockHash: ByteVecto
             DataEntry(client + "_status", "approved"),
             DataEntry(client + "_amount", amount),
             DataEntry(client + "_target", target),
-            DataEntry(client + "_lockScript", lockHash)
+            DataEntry(client + "_lockScriptId", lockHash)
         ])
     }else {
         throw("Credit for " + client + " has already been approved or caller is not dApp owner")
@@ -18,7 +18,7 @@ func approveCredit(client: String, amount: Int, target: Int, lockHash: ByteVecto
 }
 
 @Callable(i)
-func getMoney(txId: String) = {
+func getMoney() = {
 
     let callerStr = toBase58String(i.caller.bytes)
 
@@ -27,10 +27,11 @@ func getMoney(txId: String) = {
         case x: String => x
     }
 
-    let lockTx = transactionById(fromBase58String(txId))
+    let lockTxId = this.getString(callerStr + "_lockScriptId").extract()
+    let lockTx = transactionHeightById(fromBase58String(lockTxId))
 
     let isLockSet = match (lockTx) {
-        case t: SetScriptTransaction => t.sender == i.caller && t.script == this.getBinary(callerStr + "_lockScript").extract()
+        case t: Int => true
         case _ => throw("Lock has not been set")
     }
 
