@@ -1,13 +1,5 @@
-// const nonce = 6
-// const masterSeed = "master seed for my tests"
-// const bank = "myBankDappAcc" + nonce
-// const paymentAmount = 50000000
-// const bankAddress = address(bank)
-// const compiledDApp = compile(file('bank_dapp.ride'))
-// const customer = "customer acc bla" + nonce
-// const customerAddress = address(customer)
-// const compiledLock = compile(file('account_lock.ride'))
-const wvs = 10 ** 8
+const wvs = 10 ** 8;
+
 describe('Bank Dapp test Suite', () => {
 
     let lockTx;
