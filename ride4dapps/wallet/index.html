@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>Ivoke script demo</title>
+    <link crossorigin="anonymous" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css"
+          integrity="sha384-nn4HPE8lTHyVtfCBi5yW9d20FjT8BJwUXyWZT9InLYax14RDjBj46LmSztkmNP9w" rel="stylesheet">
+    <style>
+        .pure-button {
+            color: white;
+            border-radius: 4px;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+            min-width: 100px;
+        }
+
+        .button-success,
+        .button-error,
+        .button-warning,
+        .button-secondary {
+            color: white;
+            border-radius: 4px;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+        }
+
+        .button-success {
+            background: rgb(28, 184, 65); /* this is a green */
+        }
+
+        .button-error {
+            background: rgb(202, 60, 60); /* this is a maroon */
+        }
+
+        .button-warning {
+            background: rgb(223, 117, 20); /* this is an orange */
+        }
+
+        .button-secondary {
+            background: rgb(66, 184, 221); /* this is a light blue */
+        }
+
+    </style>
+</head>
+<body>
+<div class="pure-g">
+
+    <div class="pure-u-1-24"></div>
+
+    <div class="pure-u-22-24">
+
+        <div class="pure-u-5-5"></div>
+
+        <div class="pure-u-5-5">
+
+            <table class="pure-u-5-5 pure-table pure-table-horizontal">
+                <thead>
+                </thead>
+
+                <tbody>
+                <tr>
+                    <td>
+                        <div class="pure-control-group">
+                            <form class="pure-form pure-form-aligned">
+                                <input id="scriptAddress" placeholder="Script address" type="text">
+                            </form>
+                        </div>
+                    </td>
+                    <td>
+                        <form class="pure-form pure-form-aligned">
+                            <input id="keeperAddress" placeholder="WavesKeeper address" readonly type="text">
+                        </form>
+                    </td>
+                    <td>
+                        <form class="pure-form pure-form-aligned">
+                            <input id="hasWaves" placeholder="Waves balance" readonly type="text">
+                        </form>
+                    </td>
+                    <td>
+                        <button style="opacity: 1" disabled class="pure-button button-error" id="keeperStatus" type="button">Keeper status</button>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pure-u-5-5"></div>
+
+        <form class="pure-form pure-form-aligned">
+            <fieldset>
+                <div class="pure-control-group">
+                    <input id="withdraw" placeholder="Waves amount" type="text">
+                    <button id="withdrawBtn" class="pure-button pure-button-primary" type="button" disabled>Withdraw</button>
+                </div>
+
+                <div class="pure-control-group">
+                    <input id="deposit" placeholder="Waves amount" type="text">
+                    <button id="depositBtn" class="pure-button pure-button-primary" type="button" disabled>Deposit</button>
+                </div>
+            </fieldset>
+        </form>
+
+    </div>
+    <div class="pure-u-1-24"></div>
+</div>
+
+<script>
+
+    var appData = {};
+
+    function setStatus(status, text) {
+        var statusBtn = document.querySelector('#keeperStatus');
+        statusBtn.innerHTML = text;
+        statusBtn.className = 'pure-button button-' + status;
+        appData.keeper = status;
+    }
+
+    function setAddress(data) {
+        var address = data.account && data.account.address;
+        var addressInp = document.querySelector('#keeperAddress');
+        addressInp.value = address;
+        appData.address = address;
+    }
+
+    function setBalance(data) {
+        var balance = data.account && data.account.balance && data.account.balance.available;
+        var balanceInp = document.querySelector('#hasWaves');
+        var f, s;
+
+        if (balance.length <= 8) {
+            s = Number(balance) || 0;
+            f = '0';
+        } else {
+            s = Number(balance.slice(-8));
+            f = Number(balance.slice(0, -8));
+        }
+
+        balanceInp.value = f + '.' + s + ' Waves';
+
+        appData.balance = { f: f, s: s };
+    }
+
+    function listenKeeper(data) {
+        if (!data.initialized) {
+            setStatus('warning', 'Create waves account');
+            return null;
+        }
+
+        if (data.locked) {
+            setStatus('warning', 'Unlock keeper');
+            return null;
+        }
+
+        setStatus('success', 'Keeper ready');
+        setAddress(data);
+        setBalance(data);
+        checkDeposit();
+        checkWithdraw();
+    }
+
+    function parseKeeperErrors(error) {
+        let errorText = error.message || 'Error';
+        setStatus('error', errorText);
+    }
+
+    function checkKeeper() {
+        if (!window.WavesKeeper) {
+            var errorText = 'Install WavesKeeper and restart page';
+            setStatus('error', errorText);
+            return null;
+        }
+
+        window.WavesKeeper.initialPromise.then(function () {
+            window.WavesKeeper.on('update', listenKeeper);
+            return window.WavesKeeper.publicState();
+        }).then(
+            listenKeeper,
+            parseKeeperErrors
+        )
+    }
+
+    function changeScriptAddress() {
+        var addressInp = document.querySelector('#scriptAddress');
+        var address = addressInp.value;
+        appData.dApp = address.trim();
+        checkDeposit();
+        checkWithdraw();
+    }
+
+    function checkDeposit() {
+        if (!appData.dApp || appData.keeper !== 'success' || !appData.deposit) {
+            document.querySelector('#depositBtn').disabled = true;
+        } else {
+            document.querySelector('#depositBtn').disabled = null;
+        }
+    }
+
+    function checkWithdraw() {
+        if (!appData.dApp || appData.keeper !== 'success' || !appData.withdraw) {
+            document.querySelector('#withdrawBtn').disabled = true;
+        } else {
+            document.querySelector('#withdrawBtn').disabled = null;
+        }
+    }
+
+    function setDepositAmount() {
+        var amount =  document.querySelector('#deposit').value;
+        appData.deposit = amount;
+        checkDeposit();
+    }
+
+    function setWithrawAmount() {
+        var amount =  document.querySelector('#withdraw').value;
+        appData.withdraw = amount;
+        checkWithdraw();
+    }
+
+    document.querySelector('#deposit').addEventListener('change', setDepositAmount);
+    document.querySelector('#deposit').addEventListener('keyup', setDepositAmount);
+
+    document.querySelector('#withdraw').addEventListener('change', setWithrawAmount);
+    document.querySelector('#withdraw').addEventListener('keyup', setWithrawAmount);
+
+    document.querySelector('#scriptAddress').addEventListener('change', changeScriptAddress);
+    document.querySelector('#scriptAddress').addEventListener('keyup', changeScriptAddress);
+
+    window.onload = checkKeeper;
+    setStatus('secondary', 'Wait keeper...');
+
+</script>
+
+<script>
+    function withdraw() {
+        var tx = {
+            type: 16,
+            data: {
+                fee: {
+                    "tokens": "0.05",
+                    "assetId": "WAVES"
+                },
+                dApp: appData.dApp,
+                call: {
+                    function: 'withdraw',
+                    args: [
+                        {
+                            "type": "integer",
+                            "value": Number(appData.withdraw) * (10 ** 8)
+                        }]
+                },
+                payment: []
+            }
+        };
+
+        WavesKeeper.signAndPublishTransaction(tx).then(
+            resultOk,
+            resultFail,
+        );
+    }
+
+    document.querySelector('#withdrawBtn').addEventListener('click', withdraw);
+</script>
+
+<script>
+    function deposit() {
+        var tx = {
+            type: 16,
+            data: {
+                fee: {
+                    "tokens": "0.05",
+                    "assetId": "WAVES"
+                },
+                dApp: appData.dApp,
+                call: {
+                    function: 'deposit',
+                    args: []
+                },
+                payment: [
+                    { tokens: appData.deposit, assetId:null }
+                ]
+            }
+        };
+
+        WavesKeeper.signAndPublishTransaction(tx).then(
+            resultOk,
+            resultFail,
+        );
+    }
+
+    document.querySelector('#depositBtn').addEventListener('click', deposit);
+</script>
+
+<script>
+    function resultOk(data) {
+        console.log(data);
+    }
+    function resultFail(data) {
+        console.error(data);
+    }
+</script>
+
+</body>
+</html>
