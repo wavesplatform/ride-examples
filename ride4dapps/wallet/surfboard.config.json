@@ -1,0 +1,9 @@
+{
+  "ride_directory": "ride",
+  "test_directory": "test",
+  "env": {
+    "API_BASE": "https://devnet-aws-ir-2.wavesnodes.com",
+    "CHAIN_ID": "D",
+    "SEED": "create genesis wallet devnet-0"
+  }
+}

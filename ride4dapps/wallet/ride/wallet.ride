@@ -38,8 +38,5 @@ func withdraw(amount: Int) = {
                 )
     }
 
-
 @Verifier(tx)
-func verify() = {
-    true
-}
+func verify() = false
