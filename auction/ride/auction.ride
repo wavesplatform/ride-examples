@@ -2,14 +2,6 @@
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
 
-# Auction
-# Everybody can start an auction with invokeScript 'startAuction' attaching Tokens to it
-# Auction lasts for 'duration' blocks provided as an argument to invokeScript
-# Before auction finish anybody can bid. The bid is only accepted if it is greater than current winning bid.
-# If the same address will bid again, his new bid will be added to the previous ones 
-# Calling 'withdraw':
-# - if called by the participant who haven't won - returning his bid
-# - if called by the winner or organizer - transfering bid of the winner to organizer and Tokens to the winner
 
 
 let maxAuctionDuration = 1440 * 30 
