@@ -1,0 +1,97 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let oracle = extract(addressFromString("$ORACLE_ADDRESS"))
+let minBet = 	  50000000
+let maxSumBet = 1000000000 # max sum bet for round
+
+func calcWinAmount(this: Address|Alias, key: String, koeff: Int) = {
+
+    match getInteger(this, key) {
+        case a: Int => a * koeff
+        case _ => 0
+    }
+}
+
+@Callable(i)
+func bet(round: String, guessType: Int, guessValue: Int) = {
+
+   let pmt = extract(i.payment)
+
+   if (isDefined(pmt.assetId)) then 
+    throw("Bets only in Waves supported")
+   else if (pmt.amount < minBet) then
+    throw("Your Bet amount is less then minimal bet " + toString(minBet))
+   else if (isDefined(getBoolean(oracle, round + "_stop")) || isDefined(getString(oracle, round))) then
+    throw("This round is already played")
+   else {
+        let roundBetsKey = round + "_sumBets"
+        let curSumBets = match getInteger(this, roundBetsKey) {
+            case a:Int => a
+            case _ => 0
+        }
+        let newSumBets = curSumBets + pmt.amount
+
+        if (newSumBets > maxSumBet) then 
+            throw("Maximum amount of bets for round " + toString(maxSumBet) + ". With your bet it's " + toString(newSumBets))
+        else
+        {
+            let betKey = toBase58String(i.caller.bytes) + "_" + round
+                            + "_" + toString(guessType) + "_" + toString(guessValue)
+            let curBetAmount = match getInteger(this, betKey) {
+                case a:Int => a
+                case _ => 0
+            }
+            let newBetAmount = curBetAmount + pmt.amount
+
+            WriteSet([  DataEntry(betKey, newBetAmount), 
+                        DataEntry(roundBetsKey, newSumBets)])
+        }
+   }
+}
+
+@Callable(i)
+func withdraw(round: String) = {
+    let betKeyPart = toBase58String(i.caller.bytes) + "_" + round
+    let withdrawKey = betKeyPart + "_withdraw"
+
+    if (isDefined(getInteger(this, withdrawKey))) then {
+        throw("You have already got your prize")
+        #WriteSet([])        
+    }
+    else
+    {
+        let valComplex = getStringValue(oracle, round)
+
+        let winNum = parseIntValue(drop(take(valComplex, 2), 0))
+        let winRedBlack = parseIntValue(drop(take(valComplex, 3), 2))
+        let winEvenOdd = parseIntValue(drop(take(valComplex, 4), 3))
+        let winDeskHalf = parseIntValue(drop(take(valComplex, 5), 4))
+        let winDeskThird = parseIntValue(drop(take(valComplex, 6), 5))
+        let winRow = parseIntValue(drop(take(valComplex, 7), 6))
+
+
+        let winAmount = calcWinAmount(this, betKeyPart + "_0_" + toString(winNum), 36) + 
+                        calcWinAmount(this, betKeyPart + "_1_" + toString(winRedBlack), 2) + 
+                        calcWinAmount(this, betKeyPart + "_2_" + toString(winEvenOdd), 2) + 
+                        calcWinAmount(this, betKeyPart + "_3_" + toString(winDeskHalf), 2) + 
+                        calcWinAmount(this, betKeyPart + "_4_" + toString(winDeskThird), 3) + 
+                        calcWinAmount(this, betKeyPart + "_5_" + toString(winRow), 3) 
+
+        if (winAmount == 0) then
+            throw("You won nothing this round")
+        else
+            ScriptResult(
+                        WriteSet([DataEntry(withdrawKey, winAmount)]),
+                        TransferSet([ScriptTransfer(i.caller, winAmount, unit)])
+                    )
+    }
+}
+
+
+@Verifier(tx)
+func verify() = {
+    sigVerify(tx.bodyBytes, tx.proofs[0], base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9')
+    #true
+}

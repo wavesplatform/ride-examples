@@ -1,0 +1,219 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+
+let adminAddress = base58'$ADMIN_ADDRESS'
+
+let IdxPrice        = 0
+let IdxAmount       = 1
+let IdxTradePair    = 2
+let IdxOrderType    = 3
+let IdxSender       = 4
+let IdxAssetId      = 5
+
+let BUY = "BUY"
+let SELL = "SELL"
+
+
+func retainMatcherFee(amount: Int) = {
+    fraction(amount, 999, 1000)
+}
+
+func matcherFee(amount: Int) = {
+    amount - fraction(amount, 999, 1000)
+}
+
+func RemoveUnderscoreIfPresent(remaining: String) = {
+    if (size(remaining) > 0) then {
+        drop(remaining, 1)
+    } else {
+        remaining
+    }
+}
+
+func FormatDataParam(p: String) = {
+    let s = size(p)
+    if (s == 0)      then {throw("Parameter size must be greater then 0")}
+    else if (s > 99) then {throw("Parameter size must be less then 100")}
+    else if (s < 10) then {
+        "0" + toString(s) + p
+    } else {
+        toString(s) + p
+    }
+}
+
+# @return LIST[value, remainingState]
+func ParseNextAttribute(remaining: String) = {
+    let s = size(remaining)
+    if (s > 0) then {
+        let nn = parseIntValue(take(remaining, 2))
+        let v = take(drop(remaining, 2), nn)
+        let tmpRemaining = drop(remaining, nn + 2)
+        let remainingState = RemoveUnderscoreIfPresent(tmpRemaining)
+        [v, remainingState]
+    } else {
+        throw("Empty string was passed into parseNextAttribute func")
+    }
+}
+
+# 
+func FormatOrderDataStr(traidPair: String, sender: String, orderType: String, price: Int, amount: Int, assetId: String) = {
+    let fullStateStr = 
+                    FormatDataParam(traidPair)
+            + "_" + FormatDataParam(sender)
+            + "_" + FormatDataParam(orderType)
+            + "_" + FormatDataParam(toString(price))
+            + "_" + FormatDataParam(toString(amount))
+            + "_" + FormatDataParam(assetId)
+ 
+    fullStateStr 
+}
+
+# @return LIST[tradePair, sender, orderType, price, amount]
+func ParseOrderRawDataStr(rawStateStr: String) = {
+    let tradePair = ParseNextAttribute(rawStateStr)
+    let sender = ParseNextAttribute(tradePair[1])
+    let orderType = ParseNextAttribute(sender[1])
+    let price = ParseNextAttribute(orderType[1])
+    let amount = ParseNextAttribute(price[1])
+    let assetId = ParseNextAttribute(amount[1])
+
+    [
+        price[0],
+        amount[0],
+        tradePair[0],
+        orderType[0],
+        sender[0],
+        assetId[0]
+    ]
+}
+
+func pow10(exp: Int) = {
+
+    if exp == 0 then 1 else
+    if exp == 1 then 10 else
+    if exp == 2 then 100 else
+    if exp == 3 then 1000 else
+    if exp == 4 then 10000 else
+    if exp == 5 then 100000 else
+    if exp == 6 then 1000000 else
+    if exp == 7 then 10000000 else
+    if exp == 8 then 100000000 else
+    if exp == 9 then 1000000000 else
+    if exp == 10 then 10000000000 else
+    if exp == 11 then 100000000000 else
+    if exp == 12 then 1000000000000 else
+        throw("Pow10 more then 12 is not supported")
+}
+
+func assetIdFromString(assetId: String) = {
+    if (assetId == "WAVES" || assetId == "") then unit else fromBase58String(assetId)
+}
+
+
+@Callable(i)
+func order(assetId: String, price: Int) = {
+
+    let pmt = extract(i.payment)
+    let pmtAssetIdStr = if isDefined(pmt.assetId) then toBase58String(value(pmt.assetId)) else "WAVES"
+
+    let possibleTraidPair1 = getString(this, assetId + "/" + pmtAssetIdStr)
+    let possibleTraidPair2 = getString(this, pmtAssetIdStr + "/" + assetId)
+
+    let traidPair = if isDefined(possibleTraidPair1) then value(possibleTraidPair1) 
+                    else if isDefined(possibleTraidPair2) then value(possibleTraidPair2)
+                    else throw("Traiding for that assets is not supported")
+
+    let orderType = if isDefined(possibleTraidPair1) then BUY else SELL
+
+    let orderStr = FormatOrderDataStr(traidPair, i.caller.bytes.toBase58String(), orderType, price, pmt.amount, pmtAssetIdStr)
+
+    WriteSet([
+            DataEntry(toBase58String(i.transactionId), orderStr)
+        ])
+}
+
+
+@Callable(i) 
+func matchOrders(order1Id: String, order2Id: String) = {
+    
+    let order1 = ParseOrderRawDataStr(getStringValue(this, order1Id))
+    let order2 = ParseOrderRawDataStr(getStringValue(this, order2Id))
+
+    if (order1[IdxTradePair] != order2[IdxTradePair]) then throw("Trying to match orders from different trading pairs") else
+    if (order1[IdxOrderType] == order2[IdxOrderType]) then throw("Trying to match orders of the same type") 
+    else {
+
+        let order1isSell = order1[IdxOrderType] == SELL
+        let sellOrder = if order1isSell then order1 else order2
+        let buyOrder = if !order1isSell then order1 else order2
+
+        let sellPrice = sellOrder[IdxPrice].parseIntValue()
+        let buyPrice = buyOrder[IdxPrice].parseIntValue()
+        let sellOrderAmount = sellOrder[IdxAmount].parseIntValue()
+        let buyOrderAmount = buyOrder[IdxAmount].parseIntValue()
+
+        if (sellPrice > buyPrice) then throw("Orders are not match by price") 
+        else {
+            let exchangePrice = sellPrice # Improvement: Here sellPrice is used, but better to use price of the order which placed earlier. For this reasons stored information for an order should be extended
+            
+            let amountAssetDecimals = if (sellOrder[IdxAssetId]=="WAVES") then 8 else (value(assetInfo(value(assetIdFromString(sellOrder[IdxAssetId]))))).decimals 
+            let priceAssetDecimals = if (buyOrder[IdxAssetId]=="WAVES") then 8 else (value(assetInfo(value(assetIdFromString(buyOrder[IdxAssetId]))))).decimals 
+            
+            let buyAmount =  buyOrderAmount * pow10(amountAssetDecimals) / exchangePrice
+            let sellAmount = sellOrderAmount
+            let amountAssetAmount = if (sellAmount <= buyAmount) then sellAmount else buyAmount
+
+            let priceAssetAmount = amountAssetAmount * exchangePrice / pow10(amountAssetDecimals) 
+
+            let updatedBuyStr = FormatOrderDataStr(buyOrder[IdxTradePair], buyOrder[IdxSender], buyOrder[IdxOrderType], 
+                                                    buyPrice, buyOrderAmount - priceAssetAmount, sellOrder[IdxAssetId])
+            let updatedSellStr = FormatOrderDataStr(sellOrder[IdxTradePair], sellOrder[IdxSender], sellOrder[IdxOrderType], 
+                                                    sellPrice, sellOrderAmount - amountAssetAmount, buyOrder[IdxAssetId])
+
+            ScriptResult(
+                WriteSet([
+                            DataEntry(if !order1isSell then order1Id else order2Id, updatedBuyStr), 
+                            DataEntry(if order1isSell then order1Id else order2Id, updatedSellStr)
+                        ]),
+                TransferSet([
+                            ScriptTransfer(addressFromStringValue(buyOrder[IdxSender]), retainMatcherFee(amountAssetAmount), assetIdFromString(sellOrder[IdxAssetId])),
+                            ScriptTransfer(addressFromStringValue(sellOrder[IdxSender]), retainMatcherFee(priceAssetAmount), assetIdFromString(buyOrder[IdxAssetId])),
+                            ScriptTransfer(i.caller, matcherFee(amountAssetAmount), assetIdFromString(sellOrder[IdxAssetId])),
+                            ScriptTransfer(i.caller, matcherFee(priceAssetAmount), assetIdFromString(buyOrder[IdxAssetId]))])
+
+            )
+        }
+    }
+}
+
+@Callable(i)
+func cancelOrder(orderId: String) = {
+
+    let order = ParseOrderRawDataStr(getStringValue(this, orderId))
+
+    if (addressFromStringValue(order[IdxSender]) != i.caller) then
+        throw("Only order owner can cancel it")
+    else {
+        let updatedOrderStr = FormatOrderDataStr(order[IdxTradePair], order[IdxSender], order[IdxOrderType], 
+                                                parseIntValue(order[IdxPrice]), 0, order[IdxAssetId])
+        ScriptResult(
+                WriteSet([
+                            DataEntry(orderId, updatedOrderStr)
+                        ]),
+                TransferSet([
+                            ScriptTransfer(i.caller, parseIntValue(order[IdxAmount]), assetIdFromString(order[IdxAssetId]))])
+            )
+    }
+}
+
+@Callable(i)
+func registerTraidPair(asset1: String, priceAsset: String, traidPair: String) = {
+    if i.caller == addressFromStringValue(adminAddress.toBase58String()) then
+        WriteSet([
+                DataEntry(asset1 + "/" + priceAsset, traidPair)
+            ])
+    else
+        throw("Only administrator can register traiding pair")
+}
