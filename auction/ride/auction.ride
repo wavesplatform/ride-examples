@@ -3,7 +3,6 @@
 {-# SCRIPT_TYPE ACCOUNT #-}
 
 
-
 let maxAuctionDuration = 1440 * 30 
 # ~ 30 days
 
@@ -12,13 +11,13 @@ let maxAuctionDuration = 1440 * 30
 func startAuction(duration: Int, startPrice: Int, priceAssetId:String) = {
     
     let auctionId = toBase58String(i.transactionId)
-    let auctionEndHeight = lastBlock.height + duration
+    let endHeight = lastBlock.height + duration
 
     let pmt = extract(i.payment)
     
     if (duration > maxAuctionDuration) then throw("Duration is too long. Must be less than " + toString(maxAuctionDuration)) else
     WriteSet( 
-            [   DataEntry(auctionId, auctionEndHeight), 
+            [   DataEntry(auctionId, endHeight), 
                 DataEntry(auctionId + "_organizer", i.caller.bytes.toBase58String()), 
                 DataEntry(auctionId + "_lot_assetId", if (isDefined(pmt.assetId)) then toBase58String(value(pmt.assetId)) else "WAVES"),
                 DataEntry(auctionId + "_lot_amount", pmt.amount), 
@@ -34,27 +33,44 @@ func bid(auctionId: String) = {
     let pmtAssetIdStr = if (isDefined(pmt.assetId)) then toBase58String(value(pmt.assetId)) else "WAVES"
     let callerAddressStr = i.caller.bytes.toBase58String()
 
-    let auctionEndHeight = getIntegerValue(this, auctionId)
-    let auctionPriceAssetId = getStringValue(this, auctionId + "_priceAssetId")
-    let auctionWinAmount = getInteger(this, auctionId + "_winAmount")
+    let endHeight = getIntegerValue(this, auctionId)
+    let startPrice = getIntegerValue(this, auctionId + "_startPrice")
+    let priceAssetId = getStringValue(this, auctionId + "_priceAssetId")
+    let winAmount = getInteger(this, auctionId + "_winAmount")
+    let winner = getString(this, auctionId + "_winner")
 
-    let bidderAmount = getInteger(this, auctionId + "_bidder_" + callerAddressStr)
-    let curBidderAmount = if isDefined(bidderAmount) then value(bidderAmount) else 0
+    let bidFromTheSameUser = isDefined(winner) && value(winner) == callerAddressStr
+    let totalBidAmount = pmt.amount + if bidFromTheSameUser then
+                                         value(winAmount) else 0
 
-    let totalBidAmount = curBidderAmount + pmt.amount
-
-    if (lastBlock.height >= auctionEndHeight) then 
+    if (lastBlock.height >= endHeight) then 
         throw("Auction already finished") else
-    if (auctionPriceAssetId != pmtAssetIdStr) then 
-        throw("Bid must be in asset '" + auctionPriceAssetId + "'") else
-    if (isDefined(auctionWinAmount) && totalBidAmount <= value(auctionWinAmount)) then 
-        throw("Bid must be more then " + toString(totalBidAmount)) 
+    if (priceAssetId != pmtAssetIdStr) then 
+        throw("Bid must be in asset '" + priceAssetId + "'") else
+    if (isDefined(winAmount) && totalBidAmount <= value(winAmount) ||
+        !isDefined(winAmount) && totalBidAmount <= startPrice) then 
+        throw("Bid must be more then " 
+           + toString(if isDefined(winAmount) then value(winAmount) else startPrice)) 
     else
-        WriteSet([
-            DataEntry(auctionId + "_bidder_" + callerAddressStr, totalBidAmount),
-            DataEntry(auctionId + "_winner", callerAddressStr),
-            DataEntry(auctionId + "_winAmount", totalBidAmount)
-        ])
+        if (bidFromTheSameUser || !isDefined(winner)) then
+            WriteSet([
+                DataEntry(auctionId + "_winner", callerAddressStr),
+                DataEntry(auctionId + "_winAmount", totalBidAmount)
+            ])
+        else {
+            let previousBidderAddr = addressFromStringValue(value(winner))
+            let priceAsset = if (priceAssetId == "WAVES" || priceAssetId == "") then unit else fromBase58String(priceAssetId)
+            ScriptResult(
+                WriteSet([
+                    DataEntry(auctionId + "_winner", callerAddressStr),
+                    DataEntry(auctionId + "_winAmount", totalBidAmount)
+                ]),
+                TransferSet([
+                    ScriptTransfer(previousBidderAddr, value(winAmount), priceAsset)
+                ])
+            )
+        }
+
 }
 
 
@@ -65,59 +81,42 @@ func withdraw(auctionId: String) = {
     let pmtAssetIdStr = if (isDefined(pmt.assetId)) then toBase58String(value(pmt.assetId)) else "WAVES"
     let callerAddressStr = i.caller.bytes.toBase58String()
 
-    let auctionEndHeight = getIntegerValue(this, auctionId)
-    let auctionOrganizer = getStringValue(this, auctionId + "_organizer")
-    let auctionWinner = getString(this, auctionId + "_winner")
-    let auctionLotAssetId = getStringValue(this, auctionId + "_lot_assetId")
-    let auctionLotAmount = getIntegerValue(this, auctionId + "_lot_amount")
-    let auctionPriceAssetId = getStringValue(this, auctionId + "_priceAssetId")
-    let auctionWinAmount = getIntegerValue(this, auctionId + "_winAmount")
+    let endHeight = getIntegerValue(this, auctionId)
+    let organizer = getStringValue(this, auctionId + "_organizer")
+    let winner = getString(this, auctionId + "_winner")
+    let lotAssetId = getStringValue(this, auctionId + "_lot_assetId")
+    let lotAmount = getIntegerValue(this, auctionId + "_lot_amount")
+    let priceAssetId = getStringValue(this, auctionId + "_priceAssetId")
+    let winAmount = getIntegerValue(this, auctionId + "_winAmount")
     
-    let auctionLotAsset = if (auctionLotAssetId == "WAVES") then unit else fromBase58String(auctionLotAssetId)
-    let auctionPriceAsset = if (auctionPriceAssetId == "WAVES" || auctionPriceAssetId == "") then unit else fromBase58String(auctionPriceAssetId)
-    let auctionWinnerAddr = addressFromStringValue(value(auctionWinner))
-    let auctionOrganizerAddr = addressFromStringValue(value(auctionOrganizer))
+    let lotAsset = if (lotAssetId == "WAVES") then unit else fromBase58String(lotAssetId)
+    let priceAsset = if (priceAssetId == "WAVES" || priceAssetId == "") then unit else fromBase58String(priceAssetId)
+    let winnerAddr = addressFromStringValue(value(winner))
+    let organizerAddr = addressFromStringValue(value(organizer))
 
     let betAmount = getInteger(this, auctionId + "_bidder_" + callerAddressStr)
 
-    if (lastBlock.height < auctionEndHeight) then 
+    if (lastBlock.height < endHeight) then 
         throw("Auction is not finished yet") else
     
-    if (!isDefined(auctionWinner)) then {
-        if (callerAddressStr == auctionOrganizer) then 
-            if (!isDefined(getString(this, auctionId + "_lot_passed"))) then
-                throw("You have already got your lot back")
-            else
-                ScriptResult(
-                    WriteSet([DataEntry(auctionId + "_lot_passed", i.caller.bytes.toBase58String())]),
-                    TransferSet([ScriptTransfer(i.caller, auctionLotAmount, auctionLotAsset)])
-                )
+    if (!isDefined(winner)) then {
+        if (isDefined(getString(this, auctionId + "_lot_passed"))) then
+            throw("Organizer has already got his lot back")
         else
-            throw("You haven't participate in this auction")
+            ScriptResult(
+                WriteSet([DataEntry(auctionId + "_lot_passed", organizer)]),
+                TransferSet([ScriptTransfer(organizerAddr, lotAmount, lotAsset)])
+            )
     }
     else {
-        if (callerAddressStr == auctionOrganizer || callerAddressStr == auctionWinner) then {
-            # Lot -> winner, winner's bet -> organizer
-            if (isDefined(getString(this, auctionId + "_lot_passed"))) then
-                throw("Lot is already passed to the winner, and organizer got his reward")
-            else
-                ScriptResult(
-                    WriteSet([DataEntry(auctionId + "_lot_passed", auctionWinnerAddr.bytes.toBase58String())]),
-                    TransferSet([ScriptTransfer(auctionWinnerAddr, auctionLotAmount, auctionLotAsset),
-                                ScriptTransfer(auctionOrganizerAddr, auctionWinAmount, auctionPriceAsset)])
-                    # We don't mark winner's bid as returned here because it's not neccessary
-                )
-        }
-        else {
-            if (!isDefined(betAmount)) then 
-                throw("You didn't bid anything")
-            else if (isDefined(getBoolean(this, auctionId + "_bidder_" + callerAddressStr + "_return"))) then
-                throw("You have already got your bid back")
-            else 
-                ScriptResult(
-                    WriteSet([DataEntry(auctionId + "_bidder_" + callerAddressStr + "_return", true)]),
-                    TransferSet([ScriptTransfer(i.caller, value(betAmount), auctionPriceAsset)]) # return bet which loose
-                )
-        }            
+        # Lot -> winner, winner's bet -> organizer
+        if (isDefined(getString(this, auctionId + "_lot_passed"))) then
+            throw("Lot is already passed to the winner, and organizer got his reward")
+        else
+            ScriptResult(
+                WriteSet([DataEntry(auctionId + "_lot_passed", winnerAddr.bytes.toBase58String())]),
+                TransferSet([ScriptTransfer(winnerAddr, lotAmount, lotAsset),
+                            ScriptTransfer(organizerAddr, winAmount, priceAsset)])
+            )
     }
 }

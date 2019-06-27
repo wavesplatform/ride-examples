@@ -10,7 +10,7 @@ const ADD_FEE = 0.004 * WAVES
 var issueTxId
 var auctionId
 var auctionStartTx
-
+var customer2Before
 
 async function rememberBalances(text, forAddress, tokenId) {
     const tokenBal = await assetBalance(tokenId, forAddress)
@@ -64,7 +64,17 @@ describe('Auction test Suite', async function(){
         console.log("Start auction height : " + auctionStartTx.height)
     })
 
+    it('Unable to bid less then start price', async function(){
+        const invTx = invokeScript({fee:INV_FEE, dApp: address(accounts.auction), call: {function:"bid", args:[{type:"string", value: auctionId}]}, 
+                        payment: [{amount: 999999, assetId:null }]}, 
+                        accounts.customer2)
+        expect(broadcast(invTx)).rejectedWith("Bid must be more then 1000000")
+    })
+    
     it('Customer2: bid 0.1 WAVES', async function(){
+
+        customer2Before = await balance(address(accounts.customer2))
+
         const invTx = invokeScript({fee:INV_FEE, dApp: address(accounts.auction), call: {function:"bid", args:[{type:"string", value: auctionId}]}, 
                         payment: [{amount: 10000000, assetId:null }]}, 
                         accounts.customer2)
@@ -86,6 +96,11 @@ describe('Auction test Suite', async function(){
         const resp = await broadcast(invTx)
         await waitForTx(invTx.id)
     })
+
+    it('Previous bid returned to bidder', async function(){
+        const customer2After = await balance(address(accounts.customer2))
+        expect(customer2After).to.equal(customer2Before - INV_FEE, "Bid must be returned")
+    })    
    
     it('Wait for auction end', async function(){
         const timeout = 180000
