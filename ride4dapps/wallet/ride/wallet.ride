@@ -1,5 +1,5 @@
-# In this example multiple accounts can deposit their funds and safely take them back, no one can interfere with this.
-# An inner state is maintained as mapping `address=>waves`.
+# In this example multiple accounts can deposit their funds and safely take them back.
+# User balances are stored in the dApp state as mapping `address=>waves`.
 
 {-# STDLIB_VERSION 3 #-}
 {-# CONTENT_TYPE DAPP #-}
@@ -7,38 +7,40 @@
 
 @Callable(i)
 func deposit() = {
-   let pmt = extract(i.payment)
-   if (isDefined(pmt.assetId)) then throw("can hodl waves only at the moment")
+   # deposit function can be invoked from UI by user to top up the balance
+   let pmt = extract(i.payment)  # creating variable with all data about a payment attached to the invokation
+   if (isDefined(pmt.assetId)) then throw("can hodl waves only at the moment")  # waves-only threshold
    else {
-        let currentKey = toBase58String(i.caller.bytes)
-        let currentAmount = match getInteger(this, currentKey) {
+        let currentKey = toBase58String(i.caller.bytes)  # determining caller key
+        let currentAmount = match getInteger(this, currentKey) {  # reading current user's balance from the account state
             case a:Int => a
-            case _ => 0
+            case _ => 0  # taking zero as a balance value if this is the first time user deposits money
         }
-        let newAmount = currentAmount + pmt.amount
-        WriteSet([DataEntry(currentKey, newAmount)])
+        let newAmount = currentAmount + pmt.amount  # counting new balance as "old balance + payment value"
+        WriteSet([DataEntry(currentKey, newAmount)])  # updating user's balance in the account state
    }
 }
 
 @Callable(i)
 func withdraw(amount: Int) = {
-    let currentKey = toBase58String(i.caller.bytes)
+    # withdraw function can be invoked by user to "cash out" a part of his balance
+    let currentKey = toBase58String(i.caller.bytes) 
     let currentAmount = match getInteger(this, currentKey) {
         case a:Int => a
         case _ => 0
     }
     let newAmount = currentAmount - amount
-    if (amount < 0)
+    if (amount < 0)  # is user requesting a positive amount?
             then throw("Can't withdraw negative amount")
-    else if (newAmount < 0)
+    else if (newAmount < 0)  # does user have enough balance for this withdraw?
             then throw("Not enough balance")
             else ScriptResult(
-                    WriteSet([DataEntry(currentKey, newAmount)]),
-                    TransferSet([ScriptTransfer(i.caller, amount, unit)])
+                    WriteSet([DataEntry(currentKey, newAmount)]),  # saving new balance to the account state
+                    TransferSet([ScriptTransfer(i.caller, amount, unit)])  # transfering the withdraw amount to user
                 )
     }
 
 @Verifier(tx)
-func verify() = false
+func verify() = false  # this script can NOT be updated because of this verifier function
 
 
