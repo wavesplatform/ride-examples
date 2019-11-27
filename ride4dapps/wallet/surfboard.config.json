@@ -3,7 +3,7 @@
   "test_directory": "test",
   "env": {
     "API_BASE": "http://localhost:6869/",
-    "CHAIN_ID": "R",
-    "SEED": "waves private node seed with waves tokens"
+    "CHAIN_ID": "S",
+    "SEED": "rich"
   }
 }

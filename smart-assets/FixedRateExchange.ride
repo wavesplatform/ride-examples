@@ -1,10 +1,12 @@
+# Fixed Rate Exchange Asset
+#
 # This token can be bought/sold for WAVES only at a rate published by
 # asset issuer.
 #
 # The issuer publishes the exchange rate with a data transaction on his
 # account. The actual exchange rate must match the published rate up to
 # 7th significant digit.
-#
+
 
 {-# STDLIB_VERSION 2 #-}
 {-# CONTENT_TYPE EXPRESSION #-}

@@ -5,7 +5,7 @@ This repository contains examples of smart contracts for accounts and assets usi
 ## Requirements
 This repository is open for contribution and we welcome all pull requests. At the same time we will accept pull requests only with well documented and commented scripts.
 Examples of well documented scripts:
-- [HotPotatoToken](/smart-assets/HotPotatoToken.ride)
+- [HotPotatoToken](/smart-assets/HotPotato.ride)
 - [Taxation](/smart-assets/Taxation.ride)
 - [VerifiedTrading](/smart-assets/VerifiedTrading.ride)
 

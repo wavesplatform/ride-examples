@@ -1,0 +1,524 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+##### Key functions #####
+
+func keyIsDefined(key: String) = {
+    match getString(this, key) {
+        case s: String => true
+        case _ => false
+    }
+}
+
+func keyQuestion(id: String) = {
+    id + "_question"
+}
+
+func keyResponseFromOracle(id: String, oraclePubKey: String) = {
+    id + "_" + oraclePubKey + "_response"
+}
+
+func keyOneResponse(id: String, i:Invocation, response: String) = {
+    id + "_" + response
+}
+
+func keyResponsesCount(id: String) = {
+    id + "_responses_count"
+}
+
+func keyPayment(id: String) = {
+    id + "_payment"
+}
+
+func keyMinResponsesCount(id: String) = {
+    id + "_min_responses_count"
+}
+
+func keyMaxResponsesCount(id: String) = {
+    id + "_max_responses_count"
+}
+
+func keyOraclesPk(id: String) = {
+    id + "_oracles_pk"
+}
+
+func keyRequesterPk(id: String) = {
+    id + "_requester_pk"
+}
+
+func keyTillHeight(id: String) = {
+    id + "_till_height"
+}
+
+func keyRequestHeight(id: String) = {
+    id + "_height"
+}
+
+func keyOracleRating(oraclePubKey: String) = {
+    oraclePubKey + "_rating"
+}
+
+func keyTookPayment(id: String, oraclePubKey: String) = {
+    id + "_" + oraclePubKey + "_payed"
+}
+
+func keyOracleStake(oraclePubKey: String) = {
+    oraclePubKey + "_stake"
+}
+
+func throwIdError(id: String) = {
+    throw("Id is already defined or there's no request with the id: " + id)
+}
+
+func keyOraclesWhiteList(id: String) = { 
+    id + "_oracles_white_list"
+}
+
+func keyOracleRegType(inv: Invocation, dataType: String) = {
+    toBase58String(inv.callerPublicKey) + "_" + dataType
+}
+
+func keyResponseValues(id: String) = {
+    id + "_values" 
+}
+
+func keyResultType(id: String) = {
+    id + "_result_type"
+}
+
+func keyResult(id: String) = {
+    id + "_result"
+}
+
+func keyResponders(id: String) = {
+    id + "_responders"
+}
+
+
+func keyResponses(id: String) = {
+    id + "_responses"
+}
+
+func keyCurrentResponsePoints(id: String, data: String) = {
+    id + "_" + data
+}
+
+func keyRequestIsDone(id: String) = {
+    id + "_done"
+}
+
+##### Getters #####
+
+func getMaxResponsesCount(id: String) = {
+    match getInteger(this, keyMaxResponsesCount(id)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func getResponsesCount(id: String) = {
+    match getInteger(this, keyResponsesCount(id)) {
+        case a:Int => a
+        case _ => 0
+    }
+}
+
+func getResponders(id: String) = {
+    match getString(this, keyResponders(id)) {
+        case a:String => a
+        case _ => ""
+    }
+}
+
+
+func getResponses(id: String) = {
+    match getString(this, keyResponses(id)) {
+        case a:String => a
+        case _ => ""
+    }
+}
+
+
+func getOracleKeys(id: String) = {
+    let keysString = getString(this, keyOraclesPk(id)).value()
+    
+    let keysList = keysString.split(";")
+    let keysCount = size(keysList)
+    keysCount
+}
+
+func getWinner(id: String) = {
+    let responses = getStringValue(this, keyResponseValues(id))
+    let neededResponsesCount = getStringValue(this, keyResponseValues(id))
+    size(responses.split(",")) < 1
+}
+
+func getWhiteListData(id: String) = {
+    match getString(this, keyOraclesWhiteList(id)) {
+        case val: String => val
+        case _ => ""
+    }
+}
+
+func getResultType(id: String) = {
+    getStringValue(this, keyResultType(id))
+}
+
+func getMinResponsesCount(id: String) = {
+    getIntegerValue(this, keyMinResponsesCount(id))
+}
+
+
+func getCurrentResponsePoints(id: String, data: String) = {
+    let currentResponseRating = keyCurrentResponsePoints(id, data)
+    match getInteger(this, currentResponseRating) {
+        case val: Int => val
+        case _ => 0
+    }
+}
+func getOracleRating(oraclePubKey: String) = {
+    getIntegerValue(this, keyOracleRating(oraclePubKey))
+}
+
+func getRespondersList(id: String) = {
+    getResponders(id).split(";")
+}
+
+func getResponsesList(id: String) = {
+    getResponses(id).split(";")
+}
+
+##### Check functions #####
+
+
+func checkMaxResponsesCount(maxResponsesCount: Int) = {
+    if (maxResponsesCount < 3 || maxResponsesCount > 7) then throw("Oracles max count should be betwen 3 and 7")
+    else maxResponsesCount
+}
+
+func checkOraclesWhiteListLengthLt1000(oraclesWhiteList: String) = {
+    if (size(oraclesWhiteList) > 1000) 
+    then throw("oraclesWhiteList is too big")
+    else oraclesWhiteList
+}
+
+func checkRequestIdLt32(id: String) = {
+    if (size(id) > 32) then throw("ID length can't be > 32")
+    else id
+}
+
+func checkIdIsNotUsed(id: String) = {
+    if (keyIsDefined(id)) then throwIdError(id)
+    else id
+}
+
+func checkPaymentInWavesGt0(pmt: AttachedPayment) = {
+    if (isDefined(pmt.assetId)) then throw("Can accept only waves")
+    else if (pmt.amount == 0) then throw("Reward for oracles is required")
+    else pmt.amount
+}
+
+func checkOraclesCountGt3Lt7(minResponsesCount: Int, maxResponsesCount: Int) = {
+    if (minResponsesCount < 3 || minResponsesCount > checkMaxResponsesCount(maxResponsesCount)) then 
+        throw("oraclesCount should be between 3 and " + checkMaxResponsesCount(maxResponsesCount).toString())
+    else minResponsesCount
+}
+
+func checkOraclesWhiteListCountGtMinCount(oraclesWhiteList: String, minResponsesCount: Int, maxResponsesCount: Int) = {
+    if (oraclesWhiteList != "") then {
+        if (size(oraclesWhiteList.split(",")) < minResponsesCount)
+        then throw("oraclesWhiteList array size should be more or equal than minResponsesCount")
+        else oraclesWhiteList.split(",").size()
+    }else {
+        if (minResponsesCount < maxResponsesCount) then maxResponsesCount else 
+        throw("maxResponsesCount is less than minResponsesCount")
+    }
+}
+
+func checkIdExists(id: String) = {
+    match getString(this, keyQuestion(id)){
+        case s: String => id
+        case _ => throw("There is no such id")
+    }
+}
+
+func checkDataIllegalCharacters(data: String) = {
+    if (data.indexOf(";") != unit || data.indexOf("==") != unit) then throw("Data contains illegal characters ; or ==")
+    else data
+}
+
+func checkNewResponsesCount(currentCount: Int, id: String) = {
+    let maxResponsesCount = getMaxResponsesCount(id)
+    let newCount = currentCount + 1
+    if (newCount > maxResponsesCount) then throw("Max responses count reached")
+    else newCount
+}
+
+func checkOracleInWhiteList(oraclePubKey: String, id: String) = {
+    let oraclesInWhiteList = getStringValue(this, keyOraclesWhiteList(id))
+    if (oraclesInWhiteList == "") then true else {
+        let oraclesList = oraclesInWhiteList.split(";")
+        if (size(oraclesList) == 6) then {
+            oraclesList[0] == oraclePubKey || oraclesList[1] == oraclePubKey || oraclesList[2] == oraclePubKey ||
+            oraclesList[3] == oraclePubKey || oraclesList[4] == oraclePubKey || oraclesList[5] == oraclePubKey
+        }else if (size(oraclesList) == 5) then {
+            oraclesList[0] == oraclePubKey || oraclesList[1] == oraclePubKey || oraclesList[2] == oraclePubKey ||
+            oraclesList[3] == oraclePubKey || oraclesList[4] == oraclePubKey
+        }else if (size(oraclesList) == 4) then {
+            oraclesList[0] == oraclePubKey || oraclesList[1] == oraclePubKey || oraclesList[2] == oraclePubKey ||
+            oraclesList[3] == oraclePubKey
+        }else if (size(oraclesList) == 3) then {
+            oraclesList[0] == oraclePubKey || oraclesList[1] == oraclePubKey || oraclesList[2] == oraclePubKey
+        }else true 
+    }
+}
+
+func checkOracleResponded(oraclePubKey: String, id: String) = {
+    let respondedOracles = getStringValue(this, keyResponders(id))
+    let oraclesList = respondedOracles.split(";")
+    let oraclesListSize = size(oraclesList)
+    if (respondedOracles == "") then true else {
+        if (oraclesListSize == 6) then {
+            oraclesList[0] == oraclePubKey || oraclesList[1] == oraclePubKey || oraclesList[2] == oraclePubKey ||
+            oraclesList[3] == oraclePubKey || oraclesList[4] == oraclePubKey || oraclesList[5] == oraclePubKey
+        }else if (oraclesListSize == 5) then {
+            oraclesList[0] == oraclePubKey || oraclesList[1] == oraclePubKey || oraclesList[2] == oraclePubKey ||
+            oraclesList[3] == oraclePubKey || oraclesList[4] == oraclePubKey
+        }else if (oraclesListSize == 4) then {
+            oraclesList[0] == oraclePubKey || oraclesList[1] == oraclePubKey || oraclesList[2] == oraclePubKey ||
+            oraclesList[3] == oraclePubKey
+        }else if (oraclesListSize == 3) then {
+            oraclesList[0] == oraclePubKey || oraclesList[1] == oraclePubKey || oraclesList[2] == oraclePubKey
+        }else if (oraclesListSize == 2) then {
+            oraclesList[0] == oraclePubKey || oraclesList[1] == oraclePubKey || oraclesList[2] == oraclePubKey
+        }else if (oraclesListSize == 1) then {
+            oraclesList[0] == oraclePubKey || oraclesList[1] == oraclePubKey || oraclesList[2] == oraclePubKey
+        } else false
+    }
+}
+
+######## This is the main function for sure
+
+func calculateResult(id: String) = {
+    # let respondersList = getRespondersList(id)
+    let responsesList = getResponsesList(id)
+    let response0Rating = if size(responsesList) > 0 then getIntegerValue(this, keyCurrentResponsePoints(id, responsesList[0])) else -1
+    let response1Rating = if size(responsesList) > 1 then getIntegerValue(this, keyCurrentResponsePoints(id, responsesList[1])) else -1
+    let response2Rating = if size(responsesList) > 2 then getIntegerValue(this, keyCurrentResponsePoints(id, responsesList[2])) else -1
+    let response3Rating = if size(responsesList) > 3 then getIntegerValue(this, keyCurrentResponsePoints(id, responsesList[3])) else -1
+    let response4Rating = if size(responsesList) > 4 then getIntegerValue(this, keyCurrentResponsePoints(id, responsesList[4])) else -1
+    let response5Rating = if size(responsesList) > 5 then getIntegerValue(this, keyCurrentResponsePoints(id, responsesList[5])) else -1
+    
+    if response0Rating >= response1Rating && response0Rating >= response2Rating && response0Rating >= response3Rating 
+        && response0Rating >= response4Rating && response0Rating >= response5Rating then responsesList[0] else
+
+    if response1Rating >= response0Rating && response1Rating >= response2Rating && response1Rating >= response3Rating 
+        && response1Rating >= response4Rating && response1Rating >= response5Rating then responsesList[1] else
+
+    if response2Rating >= response1Rating && response2Rating >= response0Rating && response2Rating >= response3Rating 
+        && response2Rating >= response4Rating && response2Rating >= response5Rating then responsesList[2] else
+
+    if response3Rating >= response1Rating && response3Rating >= response2Rating && response3Rating >= response0Rating 
+        && response3Rating >= response4Rating && response3Rating >= response5Rating then responsesList[3] else
+
+    if response4Rating >= response1Rating && response4Rating >= response2Rating && response4Rating >= response3Rating 
+        && response4Rating >= response0Rating && response4Rating >= response5Rating then responsesList[4] else
+        
+    responsesList[5]
+}
+
+func getOracleDiff(oraclePubKey: String, response: String, result: String, requestId: String) = { 
+    let oracleRatingKey = keyOracleRating(oraclePubKey)
+    let oracleStakeKey = keyOracleStake(oraclePubKey)
+    let currentRating = getIntegerValue(this, oracleRatingKey)
+    if (response == result) then {
+        DataEntry(oracleRatingKey, currentRating + 100)
+    } else {
+        DataEntry(oracleRatingKey, currentRating - 100)
+    }
+}
+
+func getOracleRatingsDiff(id: String, result: String) = {
+    let respondedOraclesList = getRespondersList(id)
+    let responsesList = getResponsesList(id)
+
+    let acc3 = [
+        getOracleDiff(respondedOraclesList[0], responsesList[0], result, id),
+        getOracleDiff(respondedOraclesList[1], responsesList[1], result, id),
+        getOracleDiff(respondedOraclesList[2], responsesList[2], result, id)
+    ]
+    let oracleResult = {
+        let listSize = respondedOraclesList.size()
+        if(listSize == 3) then acc3 else {
+            let acc4 = cons(getOracleDiff(respondedOraclesList[3], responsesList[3], result, id), acc3)
+            if(listSize == 4) then acc4 else {
+                let acc5 = cons(getOracleDiff(respondedOraclesList[4], responsesList[4], result, id), acc4)
+                if(listSize == 5) then acc5 else {
+                    let acc6 = cons(getOracleDiff(respondedOraclesList[5], responsesList[5], result, id), acc5)
+                    if(listSize == 6) then acc6
+                    else throw("Too big array, max 6 elements")
+                            
+    }}}}
+
+    oracleResult
+}
+
+# Each oracle have to register as oracle and have to inform about data providing by this oracle
+@Callable(i)
+func registerAsOracle(dataType: String) = {
+    let neededKey = keyOracleRegType(i, dataType)
+    let ratingKey = keyOracleRating(i.callerPublicKey.toBase58String())
+    let stakeKey = keyOracleRating(i.callerPublicKey.toBase58String())
+    let currentRating = match getInteger(this, ratingKey) {
+        case v: Int => v
+        case _ => 100
+    }
+    match (getString(i.caller, neededKey)) {
+        case data:String => throw("This oracle is registered already")
+        case _ => {
+            WriteSet([
+                DataEntry(neededKey, toString(height)),
+                DataEntry(ratingKey, currentRating),
+                DataEntry(ratingKey, currentRating)
+            ])
+        }
+    }
+}
+
+# Oracle can cancel its' registration
+@Callable(i)
+func unregisterAsOracle(dataType: String) = {
+    let neededKey = keyOracleRegType(i, dataType)
+    match (getString(i.caller, neededKey)) {
+        case data:String => {
+            WriteSet([
+                DataEntry(neededKey, false)
+            ])
+        }
+        case _ => throw("This oracle is registered already")
+      }
+}
+
+# 
+@Callable(i)
+func request(id: String, question: String, minResponsesCount: Int, maxResponsesCount: Int, oraclesWhiteList: String, tillHeight: Int) = {
+        let whiteList = checkOraclesWhiteListLengthLt1000(oraclesWhiteList)
+        let checkedRequestIdLt64 = checkRequestIdLt32(id)
+        let requestId = checkIdIsNotUsed(checkedRequestIdLt64)
+        let paymentAmount = checkPaymentInWavesGt0(i.payment.extract())
+        let minCount = checkOraclesCountGt3Lt7(minResponsesCount, maxResponsesCount)
+        let maxCount = checkOraclesWhiteListCountGtMinCount(oraclesWhiteList, minCount, maxResponsesCount)
+        let callerPubKey = toBase58String(i.callerPublicKey)
+        WriteSet([
+            DataEntry(keyMinResponsesCount(requestId), minCount),
+            DataEntry(keyMaxResponsesCount(requestId), maxCount),
+            DataEntry(keyResponsesCount(requestId), 0),
+            DataEntry(keyQuestion(requestId), question),
+            DataEntry(keyTillHeight(requestId), tillHeight),
+            DataEntry(keyOraclesWhiteList(requestId), whiteList),
+            DataEntry(keyRequesterPk(requestId), callerPubKey),
+            DataEntry(keyRequestHeight(requestId), height),
+            DataEntry(keyPayment(requestId), paymentAmount),
+            DataEntry(keyResponders(requestId), ""),
+            DataEntry(keyRequestIsDone(id), false),
+            DataEntry(requestId, question)
+        ])
+}
+
+@Callable(i)
+func response(id: String, data: String) = {
+
+    # Step 0 - check provided data (valid id and data)
+    let requestId = checkIdExists(id)
+    let checkedData = checkDataIllegalCharacters(data)
+
+    # Step 1 - check needed count of responses
+    let currentResponsesCount = getResponsesCount(id)
+    let newResponsesCount = checkNewResponsesCount(currentResponsesCount, id)
+    
+    # Step 2 - check white list && already responded
+    let oraclePubKey = i.callerPublicKey.toBase58String()
+    let oracleIsAllowed = checkOracleInWhiteList(oraclePubKey, id) == true || checkOracleResponded(oraclePubKey, id) == false
+    let maxHeight = getIntegerValue(this, keyTillHeight(id))
+    let isDone = getBooleanValue(this, keyRequestIsDone(id)) == true
+    let requestIsActive = maxHeight > height || isDone
+    # TODO: Add function to check that consensus already reached
+    if (oracleIsAllowed == false) then throw("Oracle is not in the white list or already responded") else
+    if (requestIsActive == false) then throw("Request is not active anymore due to max height (" + maxHeight.toString() + "/" + height.toString() + ") or it is just done (" + isDone.toString() + ")")
+    else {
+
+        let currentResponders = getResponders(id)
+        let currentResponses = getResponses(id)
+
+        let newResponders = if currentResponders == "" then oraclePubKey
+            else currentResponders + ";" + oraclePubKey
+        let newResponses = if currentResponses == "" then checkedData
+            else currentResponses + ";" + checkedData
+
+
+        let currentResponsePoints = getCurrentResponsePoints(id, checkedData)
+
+        let oracleRating = getOracleRating(oraclePubKey)
+
+        let newResponsePoint = currentResponsePoints + if oracleRating < 200 then oracleRating / 3 else log(oracleRating, 0, 8, 0, 5, HALFEVEN)
+    
+
+        let dataToWrite = [
+            DataEntry(keyResponsesCount(requestId), newResponsesCount),
+            DataEntry(keyResponseFromOracle(requestId, oraclePubKey), checkedData),
+            DataEntry(keyResponders(requestId), newResponders),
+            DataEntry(keyResponses(requestId), newResponses),
+            DataEntry(keyTookPayment(requestId, oraclePubKey), false),
+            # DataEntry(keyOneResponse(requestId, i, checkedData), newResponders),
+            DataEntry(keyCurrentResponsePoints(requestId, checkedData), newResponsePoint)
+        ]
+        WriteSet(dataToWrite)
+    }
+}
+
+@Callable(i)
+func getResult(id: String) = {
+    if (keyIsDefined(id) == false) then throwIdError(id) else {
+        let responsesCount = getResponsesCount(id)
+        let minResponsesCount = getMinResponsesCount(id)
+        if (responsesCount < minResponsesCount) then throw("Minimum oracles count not reached yet") else {
+            let result = calculateResult(id)
+            let ratingsDiff = getOracleRatingsDiff(id, result)
+            let resultKey = keyResult(id)
+            let resultDataEntry = DataEntry(resultKey, result)
+            let dataToWrite = cons(resultDataEntry, ratingsDiff)
+
+            WriteSet(dataToWrite)
+        }
+    }
+}
+
+@Callable(i)
+func takeReward(id: String) = {
+    if (keyIsDefined(id) == false) then throwIdError(id) else {
+        let paymentValue = getIntegerValue(this, keyPayment(id))
+        let oraclePubKey = i.callerPublicKey.toBase58String()
+        let oracleResponseKey = keyResponseFromOracle(id, oraclePubKey)
+        let oracleResponse = getStringValue(this, oracleResponseKey)
+
+        let resultKey = keyResult(id)
+        let resultDataEntry = getStringValue(this, resultKey)
+
+        let alreadyTookKey = keyTookPayment(id, oraclePubKey)
+        let alreadyTookPayment = getBooleanValue(this, alreadyTookKey)
+
+        let responsesCount = getResponsesCount(id)
+
+        if (oracleResponse == resultDataEntry && alreadyTookPayment == false) then {
+            let paymentAmount = paymentValue / responsesCount
+            ScriptResult(
+                WriteSet([DataEntry(alreadyTookKey, true)]),
+                TransferSet([ScriptTransfer(i.caller, paymentAmount, unit)])
+            )
+        }else {
+            throw("Already took payment or provided data was not valid")
+        }
+
+    }
+}

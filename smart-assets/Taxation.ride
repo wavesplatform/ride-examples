@@ -1,3 +1,5 @@
+# Taxation Asset
+
 # This script allows to apply taxation models to assets
 # Token owners can transfer it only if they pay taxes to the issuer
 # The tax size is defined by token issuer in data transaction

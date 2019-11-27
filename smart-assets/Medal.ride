@@ -1,4 +1,4 @@
-# This is a medal token.
+# Medal Asset
 #
 # Medals are awarded to people using Transfer or MassTransfer. The issuer
 # can mint new medals or burn unused ones. The medal asset should have

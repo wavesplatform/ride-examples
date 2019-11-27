@@ -1,8 +1,9 @@
-# This token represents a ticket that can be traded at face value only.
+# Fixed Price Asset
 #
+# This token represents a ticket that can be traded at face value only.
 # Token price is hard coded into the script, and exchange is allowed
 # only at that price. Such a token can be useful for show or sport
-# tickets to help combat ticketing fraud.
+# tickets to help to avoid ticketing fraud.
 #
 # Additional restriction: a ticket can be burnt only after the show is over.
 #

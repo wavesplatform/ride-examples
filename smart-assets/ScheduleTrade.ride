@@ -1,9 +1,10 @@
+# Schedule Trade Asset
 
 # Also you can issue an asset that can be traded on DEX only according with some schedule.
 # For example every day from 10 to 19 o’clock, from monday to friday, like on real exchanges.
 
 # First of all you have to publish a data transaction with a schedule for the next week timestamps,
-# and renew it every week (it is possible to automate this task with a cron script)
+# and renew it every week (it is possible to automate this task with a cron script).
 
 # This is the example of data transactions with a an approximate height from 10 to 19 o'clock from 25 February to the 1st of March:
 # You can issue an asset that will verify that current blockchain height is between tradeStart and tradeEnd
@@ -90,8 +91,8 @@ match (tx) {
       let fridayTradeStart = extract(getInteger(timeOracleAddress, "fridayTradeStart"))
       let fridayTradeEnd = extract(getInteger(timeOracleAddress, "fridayTradeEnd"))
 
-      (height >= mondayTradeStart && height <= mondayTradeEnd) || (height >= tuesdayTradeStart && height <= tuesdayTradeEnd)||
-      (height >= wednesdayTradeStart && height <= wednesdayTradeEnd) || (height >= thursdayTradeStart && height <= thursdayTradeEnd)||
+      (height >= mondayTradeStart && height <= mondayTradeEnd) || (height >= tuesdayTradeStart && height <= tuesdayTradeEnd) ||
+      (height >= wednesdayTradeStart && height <= wednesdayTradeEnd) || (height >= thursdayTradeStart && height <= thursdayTradeEnd) ||
       (height >= fridayTradeStart && height <= fridayTradeEnd)
   case _ => true
 }

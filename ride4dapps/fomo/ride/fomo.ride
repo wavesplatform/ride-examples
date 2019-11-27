@@ -1,0 +1,53 @@
+# FOMO - Fear of missing out - is a game
+# users send Waves to the FOMO account. each payment has to be bigger than the previous one
+# if there are no payments in the last 24 hours, the last transaction owner can withdraw the full bank
+
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let lpKey = "lastPayment"
+let liKey = "bestFomoer"
+let lhKey = "height"
+let day = 1440
+
+@Callable(i)
+func fearmissing() = {
+    # this function can be used by anyone to place a bet
+	# user has to attach a Waves payment to the script invokation
+    let payment = match i.payment {
+	    case p:AttachedPayment =>
+	   		match p.assetId  {
+				   case assetId: ByteVector => throw("fomo waves only")  # waves-only threshold
+				   case _ => p.amount
+			   }
+	    case _ => throw("payment must be attached")
+    }
+	
+	let lastPayment = match getInteger(this, "lastPayment") {  # reading the last payment value from the FOMO account state
+		case p:Int => p
+		case _ => 0
+	}
+
+	if(payment <= lastPayment)
+		then throw("min payment is " +toString(lastPayment))  # the new payment must be bigger than the previous one
+		else  # storing best payment, caller and actual blockchain height
+			WriteSet([
+				DataEntry(lpKey, payment),
+				DataEntry(liKey, i.caller.bytes),
+				DataEntry(lhKey, height)
+			])
+}
+
+@Callable(i)
+func withdraw() = {
+	# this function is used by the FOMO winner to withdraw the full balance
+	let callerCorrect = i.caller.bytes == extract(getBinary(this, liKey))  # is caller the winner?
+	let heightCorrect = extract(getInteger(this, lhKey)) - height >= day  # are there no more bets in the last 24 hours?
+	let canWithdraw = heightCorrect && callerCorrect  # are both variables true?
+
+	if (canWithdraw)
+		then TransferSet([ScriptTransfer(i.caller, wavesBalance(this), unit)])  # send full balance to the winner
+		else throw("This user can not withdraw the balance in this moment")
+}
+© 2019 GitHub, Inc.

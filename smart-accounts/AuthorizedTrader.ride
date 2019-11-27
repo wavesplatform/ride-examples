@@ -1,8 +1,10 @@
-#allow trader to set orders on your account
-#this is the same as you send your api-key on common exchanges to the trader without sharing your private key or seed
-#trader is allowed to set order on certain pairs
-#order expiration time should be less then 2 minutes, as trader cannot cancel orders in current RIDE version
-#at any time accout owner can cancel
+# Authorized Trader Account
+
+# Allow trader to set orders on your account
+# this is the same as you send your api-key on common exchanges to the trader without sharing your private key or seed
+# trader is allowed to set order on certain pairs
+# order expiration time should be less then 2 minutes, as trader cannot cancel orders in current RIDE version
+# at any time accout owner can cancel
 
 {-# STDLIB_VERSION 2 #-}
 {-# CONTENT_TYPE EXPRESSION #-}

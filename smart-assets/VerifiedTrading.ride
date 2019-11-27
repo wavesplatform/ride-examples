@@ -1,3 +1,5 @@
+# Verified Trading Asset
+
 # Set Smart asset to trade only with BetterTokens verified assets and Waves.
 
 {-# STDLIB_VERSION 2 #-}

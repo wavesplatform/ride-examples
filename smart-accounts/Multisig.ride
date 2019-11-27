@@ -1,3 +1,13 @@
+# Multisignature Account
+
+# This simple example shows how to create 2-of-3 multisignature account
+# There are 3 parties - Alice, Bob and Cooper with predefined public keys
+# Transaction from this account is valid only if at least 2 of them provide their signatures
+
+# In this example the order of signatures is important:
+# signature from Alice should be the first in proofs array (indexed 0), Bobs' signature should the second (indexed 1)
+# Coopers' signature should be the third (indexed 2).
+
 {-# STDLIB_VERSION 2 #-}
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
