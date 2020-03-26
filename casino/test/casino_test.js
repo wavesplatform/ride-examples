@@ -1,5 +1,5 @@
 // ATTENTION: Tests can work incorrectly if you use nodes with cashed requests for balances
-// It could happen that 'testnodes.wavesnodes.com' has that kind of cache
+// It could happen that 'nodes-testnet.wavesnodes.com' has that kind of cache
 
 const WAVES = 10 ** 8;
 
