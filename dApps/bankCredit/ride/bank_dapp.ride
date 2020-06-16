@@ -23,7 +23,7 @@ func getMoney() = {
     let callerStr = toBase58String(i.caller.bytes)
 
     let status = match( this.getString(callerStr + "_status")){
-        case x: Unit => "unset"
+        case _: Unit => "unset"
         case x: String => x
     }
 
@@ -31,7 +31,7 @@ func getMoney() = {
     let lockTx = transactionHeightById(fromBase58String(lockTxId))
 
     let isLockSet = match (lockTx) {
-        case t: Int => true
+        case _: Int => true
         case _ => throw("Lock has not been set")
     }
 
@@ -52,7 +52,7 @@ func getMoney() = {
 func returnMoney() = {
     let callerStr = toBase58String(i.caller.bytes)
     let status = match( this.getString(callerStr + "_status")){
-        case x: Unit => "unset"
+        case _: Unit => "unset"
         case x: String => x
     }
 
@@ -73,7 +73,7 @@ func returnMoney() = {
 func cancelContract() = {
     let callerStr = toBase58String(i.caller.bytes)
     let status = match( this.getString(callerStr + "_status")){
-        case x: Unit => "unset"
+        case _: Unit => "unset"
         case x: String => x
     }
     if(status == "approved" || status == "unset") then WriteSet([DataEntry(callerStr + "_status", "canceled")])
@@ -83,8 +83,8 @@ func cancelContract() = {
 @Verifier(tx)
 func verify() = {
     match(tx) {
-        case t:DataTransaction => false
-        case t:SetScriptTransaction => false
+        case _:DataTransaction => false
+        case _:SetScriptTransaction => false
         case _ => sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
     }
 }

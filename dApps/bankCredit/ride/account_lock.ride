@@ -9,11 +9,11 @@ let BANK = base58'3MpFRn3X9ZqcLimFoqNeZwPBnwP7Br5Fmgs'
 
 
 let TARGETHEIGHT = match( getInteger(Address(BANK), toBase58String(tx.sender.bytes) + "_target")){
-    case x: Unit => 0
+    case _: Unit => 0
     case x: Int => x
 }
 let status = match( getString(Address(BANK), toBase58String(tx.sender.bytes) + "_status")){
-    case x: Unit => "unset"
+    case _: Unit => "unset"
     case x: String => x
 }
 
@@ -29,7 +29,7 @@ if (height > TARGETHEIGHT && status == "borrowed") then {
 # In any other case forbid SetScript
 }else {
     match (tx){
-        case t: SetScriptTransaction => false
+        case _: SetScriptTransaction => false
         case _ => sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
     }
 }
