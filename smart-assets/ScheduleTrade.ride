@@ -78,7 +78,7 @@
 
 let timeOracleAddress = Address(base58'3P4V5znH4AvkpNVZ2EKSmkdSCeJppsZ4x8F')
 match (tx) {
-  case tx:ExchangeTransaction =>
+  case _:ExchangeTransaction =>
       let mondayTradeStart = extract(getInteger(timeOracleAddress, "mondayTradeStart"))
       let mondayTradeEnd = extract(getInteger(timeOracleAddress, "mondayTradeEnd"))
       let tuesdayTradeStart = extract(getInteger(timeOracleAddress, "tuesdayTradeStart"))

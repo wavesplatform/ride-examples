@@ -18,6 +18,6 @@ match tx {
         t.sender == master || t.recipient == master
     case mt: MassTransferTransaction =>
         mt.sender == master
-    case ex: ExchangeTransaction => false
+    case _: ExchangeTransaction => false
     case _ => true
 }

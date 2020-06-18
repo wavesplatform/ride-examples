@@ -18,7 +18,7 @@
 func randomizer(inv: Invocation) = {
     let lastPlay = match getBinary(this, "lastPlay") {
         case s:ByteVector => s
-        case a:Unit => base64'V2F2ZXNMb3R0b1Yy'
+        case _:Unit => base64'V2F2ZXNMb3R0b1Yy'
     }
 
     let rand = lastPlay + inv.transactionId + inv.callerPublicKey + lastBlock.generationSignature + toBytes(lastBlock.timestamp) + toBytes(lastBlock.height)
