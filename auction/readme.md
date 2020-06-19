@@ -13,8 +13,9 @@ Organizer also sets 'startPrice' and 'priceAsset' for bids.
 # Bidding
 Before auction finish anybody can bid. The bid is only accepted if it is greater than current winning bid.
 If the same address will bid again, his new bid will be added to the previous ones.
+In result of bid function the previous bidder will get his bid back. 
 
-#Withdraw
+# Withdraw
 Anyone can call 'withdraw':
 As a result bid of the winner will be transfered to organizer and token(s) to the winner.
 In case noone made bid, organizer will get his token(s) back.
