@@ -1,0 +1,177 @@
+# This is an example of crypto pawnshop DAPP on RIDE.
+
+# 1. A user can borrow WAVES tokens for WBTC(configurable) by calling `borrow`
+# function and attaching WBTC(e.g. any asset issued on waves) to it.
+# in this description and comments, we call base token "WAVES", asset token "WBTC",
+# just to make a descriptive example.
+# The DAPP will transfer WAVES to user instantly on a specified rate.
+
+# 2. After that, user can get his(or her) WBTC back by returing the loan,
+# calling `buyBack` function and attaching WAVES.
+# During the first week of the loan, one gets full amount of WBTC
+# After that, an interest rate of 1% per day is applied, wokring as a discount
+# factor on return amount of WBTC. 
+
+# Until the end of a loan(100 days) the assets are frozen in the DAPP
+
+# 3. If the user never claimed the tokens during 107( = 7 + 100) days, the owner of the contract
+# can withdraw the unclaimed amount.
+
+
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+#dapp consts
+let baseToken = unit # e.g. waves
+let day = 1440 # blocks
+let freezePeriod = 7 * day # 1 week 
+let interestRatePerDay = 100 # * 0.01 %
+let interestFreezePeriod = 100 * 100 * interestRatePerDay
+let owner = addressFromString("3FhR61vPGAdJauyEUmHpS6rHBcsV6HmQYeo").value()
+
+# state keys
+let initKey = "init"
+let currentLendRateKey = "currentRate"
+let assetTokenKey = "assetToken"
+func startOf(renter: String) = "start of " + renter
+func endOfFreezeOf(renter: String) = "end of freeze of " + renter
+func rateOf(renter: String) = "rate of " + renter
+func assetsOf(renter: String) = "assets of " + renter
+func lendAmount(renter: String) = "lend of " + renter
+
+# state accessors
+let assetToken = getString(this, assetTokenKey).value().fromBase58String()
+
+# amount of base(wavelets) for 1 token(no decimals)
+let currentLendRate = getInteger(this, currentLendRateKey).value()
+
+# a helper function calculating if a user has an open loan
+func isLendOpen(renter: String) = match getInteger(this, startOf(renter)) {
+    case s: Int => s > 0
+    case _ => false
+}
+
+# a helper function calculating that returns a WriteSet, resetting dapp state for the user
+func closing(renter: String) = WriteSet([
+                        DataEntry(startOf(renter), 0),
+                        DataEntry(endOfFreezeOf(renter), 0),
+                        DataEntry(rateOf(renter), 0),
+                        DataEntry(assetsOf(renter), 0),
+                        DataEntry(lendAmount(renter), 0)
+                    ])
+
+# initializer function, allowing owner to set token and rate of the dapp
+# required to be invoked exactly once before the dapp can function 
+@Callable(i)
+func initToken(token: String, rate: Int) = {
+   if(i.caller == owner)
+   then { 
+       let init = getInteger(this, initKey)
+       if (init.isDefined()) 
+            then throw("already initialized with token")
+            else WriteSet([
+                DataEntry(initKey, 1),
+                DataEntry(assetTokenKey, token),
+                DataEntry(currentLendRateKey, rate)]) 
+       }
+    else throw("only owner can init")
+}
+
+
+# initializer function, allowing owner change the rate
+@Callable(i)
+func setRate(rate: Int) =
+    if (i.caller == owner) 
+    then WriteSet([DataEntry(currentLendRateKey, rate )])
+    else throw("only contract owner can set a rate")
+
+# a function to borrow WAVES fof BTC.
+# requires attached WAVES, transfers BTC back to user, based on current rate
+@Callable(i)
+func borrow() = { 
+    let renter = i.caller.bytes.toBase58String()
+    if(isLendOpen(renter))
+        then throw(renter + " already has an open loan")
+    else
+        match i.payment {
+            case a:AttachedPayment => 
+                # the attached payment must be in WBTC
+                if (a.assetId == assetToken) then {
+                    let currentHeight = height
+                    let expirationHeight = height + freezePeriod + interestFreezePeriod
+                    let rate = currentLendRate
+                    let tokensAmount = a.amount 
+                    let baseTokensLent = a.amount * currentLendRate
+
+                    # the data of the loan
+                    let datas = WriteSet([
+                        DataEntry(startOf(renter), currentHeight),
+                        DataEntry(endOfFreezeOf(renter), expirationHeight),
+                        DataEntry(rateOf(renter), rate),
+                        DataEntry(assetsOf(renter), tokensAmount),
+                        DataEntry(lendAmount(renter), baseTokensLent)
+                    ])
+                    ScriptResult(datas, 
+                        # the transfer of WAVES
+                        TransferSet([ScriptTransfer(i.caller, baseTokensLent, unit)]))
+                } else throw("can only lend base for assetTokens " + assetToken.toBase58String() + ", but got " + a.assetId.value().toBase58String())
+            case _ => throw("payment in assetTokens must be attached")
+        }
+}
+
+@Callable(i)
+func buyBack() = {
+    let renter = i.caller.bytes.toBase58String()
+    let lendOpen = ensure(isLendOpen(renter), " no open loans for " + renter)
+    let correctRetrurningBase = ensure(!i.payment.value().assetId.isDefined(), "must return baseToken")
+    let lentAmount = getInteger(this,lendAmount(renter)).value()
+    let correctReturnAmount = ensure(lentAmount == i.payment.value().amount, "must return exactly " + lentAmount.toString())
+    let assets = getInteger(this, assetsOf(renter)).value()
+    # there must be an open loan, the return amount of WAVES must be correct
+    if(lendOpen && correctRetrurningBase && correctReturnAmount) then {
+        let returnFullAmount = getInteger(this,startOf(renter)).value() + freezePeriod > height
+        let expirationHeight = getInteger(this,endOfFreezeOf(renter)).value()
+        let returnAmount = if(returnFullAmount)
+            then assets
+            else if( height > expirationHeight)
+                then throw("your loan has expired")
+                else {
+                    # calclulate return amount of tokens
+                    fraction(assets, expirationHeight - height, interestFreezePeriod)
+                }
+        let theRestOfAmount = assets - returnAmount
+        ScriptResult(closing(renter), TransferSet([
+                # user gets discounted amount
+                ScriptTransfer(i.caller, returnAmount, assetToken),
+                # owner gets interest back
+                ScriptTransfer(owner, theRestOfAmount, assetToken)
+                ]))
+    } else throw()
+}
+
+
+# if there's an unclaimed loan, dapp owner can transfer unclaimed WBTC to himself after the expiration
+@Callable(i)
+func withdrawUnclaimedOfAddress(address:String) = {
+   let loanExpired = ensure(getInteger(this, endOfFreezeOf(address)).value() > height, "loan not expired yet")
+   let ownerCall = ensure(i.caller == owner,"only owner can get unclaimed")   
+   if(ownerCall && loanExpired)
+        then 
+            let loanSize = getInteger(this, assetsOf(address)).value()
+            ScriptResult(closing(address),TransferSet([ScriptTransfer(owner, loanSize, assetToken)]))
+        else throw()
+}
+
+# the owner can withdraw own WAVES. No user-owned waves are in the dapp
+@Callable(i)
+func withdraw(amount: Int) = 
+    if(i.caller == owner)
+        then TransferSet([ScriptTransfer(owner,amount, unit)])
+        else throw("only owner can withdraw base")
+
+
+# this is a public value transfer contract, so @Verifier function must be set to false,
+# otherwise the owner of the private key of the dapp's account can manage its state and funds
+@Verifier(tx)
+func no() = false
