@@ -8,7 +8,7 @@
  let shareToken = base58''
 
  @Callable(i)
- func exchangeWavesUsdN() = {
+ func addLiquidity() = {
    if (i.payments[0].assetId != unit && i.payments[1].assetId != usdN)
      then
        throw("unexpected assets")
