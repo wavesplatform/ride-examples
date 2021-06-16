@@ -1,0 +1,14 @@
+ {-# STDLIB_VERSION 5     #-}
+ {-# SCRIPT_TYPE ACCOUNT  #-}
+ {-# CONTENT_TYPE DAPP    #-}
+
+ let usdN = base58''
+
+ @Callable(i)
+ func cancelStake(amount: Int) = {
+   if (this.getIntegerValue(i.caller.toString()) >= amount)
+     then
+       [ ScriptTransfer(i.caller, amount, usdN) ]
+     else
+       throw("too big amount")
+ }

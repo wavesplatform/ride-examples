@@ -1,0 +1,16 @@
+ {-# STDLIB_VERSION 5     #-}
+ {-# SCRIPT_TYPE ACCOUNT  #-}
+ {-# CONTENT_TYPE DAPP    #-}
+
+ let aToBRate = 5
+ let assetA = base58''
+ let assetB = base58''
+
+ @Callable(i)
+ func exchangeAB() = {
+   if (i.payments[0].assetId == assetA)
+     then
+       [ ScriptTransfer(i.caller, i.payments[0].amount * aToBRate, assetB) ]
+     else
+       throw("unexpected token")
+ }

@@ -1,0 +1,16 @@
+ {-# STDLIB_VERSION 5     #-}
+ {-# SCRIPT_TYPE ACCOUNT  #-}
+ {-# CONTENT_TYPE DAPP    #-}
+
+ let usdN = base58''
+
+ @Callable(i)
+ func stake() = {
+   if (i.payments[0].assetId != usdN)
+     then
+       throw("unexpected asset")
+     else {
+       let currentLiquidity = this.getInteger(i.caller.toString()).valueOrElse(0)
+       [ IntegerEntry(i.caller.toString(), currentLiquidity + i.payments[0].amount) ]
+     }
+ }

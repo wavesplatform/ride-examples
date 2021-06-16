@@ -1,0 +1,26 @@
+ {-# STDLIB_VERSION 5     #-}
+ {-# SCRIPT_TYPE ACCOUNT  #-}
+ {-# CONTENT_TYPE DAPP    #-}
+
+ let loanFeePercent = 5
+ let assetA = base58''
+ let assetB = base58''
+ let exchangerABAddress = Address(base58'')
+ let exchangerBAAddress = Address(base58'')
+ let loanerAddress      = Address(base58'')
+
+ @Callable(i)
+ func trade(amount: Int, beneficiary: ByteVector) = {
+   strict startBalanceB = this.assetBalance(assetB)
+   strict r1 = invoke(exchangerABAddress, "exchangeAB", [], [AttachedPayment(assetA, amount)])
+   strict diffB = this.assetBalance(assetB) - startBalanceB
+
+   strict r2 = invoke(exchangerBAAddress, "exchangeBA", [], [AttachedPayment(assetB, diffB)])
+
+   let debt = amount.fraction(100 + loanFeePercent, 100)
+   let profit = this.assetBalance(assetA) - debt
+   [
+     ScriptTransfer(Address(beneficiary), profit, assetA),
+     ScriptTransfer(loanerAddress, debt, assetA)
+   ]
+ }
