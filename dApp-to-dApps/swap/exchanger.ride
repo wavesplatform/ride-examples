@@ -1,3 +1,7 @@
+ # Calls the USDN staking contract canceling USDN staking for the amount
+ # that the user should receive during the exchange
+ # and transfers USDN to the user's address.
+
  {-# STDLIB_VERSION 5     #-}
  {-# SCRIPT_TYPE ACCOUNT  #-}
  {-# CONTENT_TYPE DAPP    #-}

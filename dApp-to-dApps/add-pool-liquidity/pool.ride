@@ -1,3 +1,5 @@
+ # Increases pool liquidity using attached WAVES tokens for leasing and USDN tokens for staking.
+
  {-# STDLIB_VERSION 5     #-}
  {-# SCRIPT_TYPE ACCOUNT  #-}
  {-# CONTENT_TYPE DAPP    #-}

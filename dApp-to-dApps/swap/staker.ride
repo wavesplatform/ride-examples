@@ -1,3 +1,6 @@
+ # "stake" receives USDN and saves the new staking amount in the state.
+ # "cancelStake" withdraws the required amount from staking and transfers it to the account.
+
  {-# STDLIB_VERSION 5     #-}
  {-# SCRIPT_TYPE ACCOUNT  #-}
  {-# CONTENT_TYPE DAPP    #-}

@@ -1,3 +1,7 @@
+ # Calls the contract specified by the borrower when called in the transaction
+ # and applies the requested amount of token A in the call.
+ # Checks that upon completion of the call to the contract, the balance of token A has increased.
+
  {-# STDLIB_VERSION 5     #-}
  {-# SCRIPT_TYPE ACCOUNT  #-}
  {-# CONTENT_TYPE DAPP    #-}

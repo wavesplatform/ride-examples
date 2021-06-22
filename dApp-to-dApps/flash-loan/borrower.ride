@@ -1,3 +1,6 @@
+ # Borrows token A, changes to B, then changes the funds received again to A,
+ # returns the money to the lender and stays in profit on token A.
+
  {-# STDLIB_VERSION 5     #-}
  {-# SCRIPT_TYPE ACCOUNT  #-}
  {-# CONTENT_TYPE DAPP    #-}
