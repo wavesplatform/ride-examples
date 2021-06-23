@@ -13,6 +13,6 @@
        throw("unexpected asset")
      else {
        let currentLiquidity = this.getInteger(i.originCaller.toString()).valueOrElse(0)
-       [ IntegerEntry(i.caller.toString(), currentLiquidity + i.payments[0].amount) ]
+       [ IntegerEntry(i.originCaller.toString(), currentLiquidity + i.payments[0].amount) ]
      }
  }
