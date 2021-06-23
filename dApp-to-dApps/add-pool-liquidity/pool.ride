@@ -11,7 +11,7 @@
 
  @Callable(i)
  func addLiquidity() = {
-   if (i.payments[0].assetId != unit && i.payments[1].assetId != usdN)
+   if (i.payments[0].assetId != unit || i.payments[1].assetId != usdN)
      then
        throw("unexpected assets")
      else {
