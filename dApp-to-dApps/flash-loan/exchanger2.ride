@@ -16,9 +16,9 @@ let assetB = base58''
 @Callable(i)
 func exchangeBA() = {
   if (i.payments[0].assetId == assetB)
-    then {
-      let assetAAmount = i.payments[0].amount / aToBRate
-      ([ ScriptTransfer(i.caller, assetAAmount, assetA) ], assetAAmount)
-    } else
+    then
+      [ ScriptTransfer(i.caller, i.payments[0].amount / aToBRate
+      , assetA) ]
+     else
       throw("unexpected token")
 }
