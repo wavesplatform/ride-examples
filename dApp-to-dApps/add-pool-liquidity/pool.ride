@@ -1,43 +1,43 @@
- # 'ADD POOL LIQUIDITY' scenario.
- # Pool contract.
- # Increases pool liquidity using attached WAVES tokens for leasing and USDN tokens for staking.
+# 'ADD POOL LIQUIDITY' scenario.
+# Pool contract.
+# Increases pool liquidity using attached WAVES tokens for leasing and USDN tokens for staking.
 
- {-# STDLIB_VERSION 5     #-}
- {-# SCRIPT_TYPE ACCOUNT  #-}
- {-# CONTENT_TYPE DAPP    #-}
+{-# STDLIB_VERSION 5     #-}
+{-# SCRIPT_TYPE ACCOUNT  #-}
+{-# CONTENT_TYPE DAPP    #-}
 
- let usdN = base58''
- let staker = Address(base58'')
- let leasePool = Address(base58'')
- let shareToken = base58''
+let usdN = base58''
+let staker = Address(base58'')
+let leasePool = Address(base58'')
+let shareToken = base58''
 
- @Callable(i)
- func addLiquidity() = {
-   if (i.payments[0].assetId != unit || i.payments[1].assetId != usdN)
-     then
-       throw("unexpected assets")
-     else {
-       strict r = invoke(staker, "stake", [], [i.payments[1]])
+@Callable(i)
+func addLiquidity() = {
+  if (i.payments[0].assetId != unit || i.payments[1].assetId != usdN)
+    then
+      throw("unexpected assets")
+    else {
+      strict r = invoke(staker, "stake", [], [i.payments[1]])
 
-       let amountKey = "AMOUNT_" + i.caller.toString()
-       let idKey     = "ID_" + i.caller.toString()
+      let amountKey = "AMOUNT_" + i.caller.toString()
+      let idKey     = "ID_" + i.caller.toString()
 
-       let leasedAmount = this.getInteger(amountKey).valueOrElse(0)
-       let leaseId      = this.getString(idKey)
+      let leasedAmount = this.getInteger(amountKey).valueOrElse(0)
+      let leaseId      = this.getString(idKey)
 
-       let newLease   = Lease(leasePool, leasedAmount + i.payments[0].amount)
-       let newLeaseId = calculateLeaseId(newLease)
+      let newLease   = Lease(leasePool, leasedAmount + i.payments[0].amount)
+      let newLeaseId = calculateLeaseId(newLease)
 
-       let cancel = match leaseId {
-         case id: String => [ LeaseCancel(fromBase58String(id)) ]
-         case _          => [ StringEntry(idKey, toBase58String(newLeaseId)) ]
-       }
+      let cancel = match leaseId {
+        case id: String => [ LeaseCancel(fromBase58String(id)) ]
+        case _          => [ StringEntry(idKey, toBase58String(newLeaseId)) ]
+      }
 
-       cancel ++
-       [
-         newLease,
-         ScriptTransfer(i.caller, 1, shareToken),
-         IntegerEntry(amountKey, leasedAmount + i.payments[0].amount)
-       ]
-     }
- }
+      cancel ++
+      [
+        newLease,
+        ScriptTransfer(i.caller, 1, shareToken),
+        IntegerEntry(amountKey, leasedAmount + i.payments[0].amount)
+      ]
+    }
+}

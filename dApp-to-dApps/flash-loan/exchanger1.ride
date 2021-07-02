@@ -1,22 +1,22 @@
- # 'FLASH LOAN' scenario.
- # First exchanger contract.
- # Changes A to B and transfers B to the address of the calling contract.
- # Returns transfer amount.
+# 'FLASH LOAN' scenario.
+# First exchanger contract.
+# Changes A to B and transfers B to the address of the calling contract.
+# Returns transfer amount.
 
- {-# STDLIB_VERSION 5     #-}
- {-# SCRIPT_TYPE ACCOUNT  #-}
- {-# CONTENT_TYPE DAPP    #-}
+{-# STDLIB_VERSION 5     #-}
+{-# SCRIPT_TYPE ACCOUNT  #-}
+{-# CONTENT_TYPE DAPP    #-}
 
- let aToBRate = 5
- let assetA = base58''
- let assetB = base58''
+let aToBRate = 5
+let assetA = base58''
+let assetB = base58''
 
- @Callable(i)
- func exchangeAB() = {
-   if (i.payments[0].assetId == assetA)
-     then {
-       let assetBAmount = i.payments[0].amount * aToBRate
-       ([ScriptTransfer(i.caller, assetBAmount, assetB)], assetBAmount)
-     } else
-       throw("unexpected token")
- }
+@Callable(i)
+func exchangeAB() = {
+  if (i.payments[0].assetId == assetA)
+    then {
+      let assetBAmount = i.payments[0].amount * aToBRate
+      ([ScriptTransfer(i.caller, assetBAmount, assetB)], assetBAmount)
+    } else
+      throw("unexpected token")
+}

@@ -1,36 +1,36 @@
- # 'FLASH LOAN' scenario.
- # Borrower contract.
- # Borrows token A, changes to B, then changes the funds received again to A,
- # returns the money to the lender and stays in profit on token A.
+# 'FLASH LOAN' scenario.
+# Borrower contract.
+# Borrows token A, changes to B, then changes the funds received again to A,
+# returns the money to the lender and stays in profit on token A.
 
- {-# STDLIB_VERSION 5     #-}
- {-# SCRIPT_TYPE ACCOUNT  #-}
- {-# CONTENT_TYPE DAPP    #-}
+{-# STDLIB_VERSION 5     #-}
+{-# SCRIPT_TYPE ACCOUNT  #-}
+{-# CONTENT_TYPE DAPP    #-}
 
- let loanFeePercent = 5
- let assetA = base58''
- let assetB = base58''
- let exchangerABAddress = Address(base58'')
- let exchangerBAAddress = Address(base58'')
- let loanerAddress      = Address(base58'')
+let loanFeePercent = 5
+let assetA = base58''
+let assetB = base58''
+let exchangerABAddress = Address(base58'')
+let exchangerBAAddress = Address(base58'')
+let loanerAddress      = Address(base58'')
 
- @Callable(i)
- func trade(amount: Int, beneficiary: ByteVector) = {
-   strict r1 = invoke(exchangerABAddress, "exchangeAB", [], [AttachedPayment(assetA, amount)])
-   let receivedB = match r1 {
-     case a: Int => a
-     case _      => throw("unexpected result type")
-   }
-   strict r2 = invoke(exchangerBAAddress, "exchangeBA", [], [AttachedPayment(assetB, receivedB)])
-   let receivedA = match r2 {
-     case a: Int => a
-     case _      => throw("unexpected result type")
-   }
+@Callable(i)
+func trade(amount: Int, beneficiary: ByteVector) = {
+  strict r1 = invoke(exchangerABAddress, "exchangeAB", [], [AttachedPayment(assetA, amount)])
+  let receivedB = match r1 {
+    case a: Int => a
+    case _      => throw("unexpected result type")
+  }
+  strict r2 = invoke(exchangerBAAddress, "exchangeBA", [], [AttachedPayment(assetB, receivedB)])
+  let receivedA = match r2 {
+    case a: Int => a
+    case _      => throw("unexpected result type")
+  }
 
-   let debt = amount.fraction(100 + loanFeePercent, 100)
-   let profit = receivedA - debt
-   [
-     ScriptTransfer(Address(beneficiary), profit, assetA),
-     ScriptTransfer(loanerAddress, debt, assetA)
-   ]
- }
+  let debt = amount.fraction(100 + loanFeePercent, 100)
+  let profit = receivedA - debt
+  [
+    ScriptTransfer(Address(beneficiary), profit, assetA),
+    ScriptTransfer(loanerAddress, debt, assetA)
+  ]
+}

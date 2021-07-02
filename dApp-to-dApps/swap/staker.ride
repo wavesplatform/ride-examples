@@ -1,30 +1,30 @@
- # 'SWAP' scenario.
- # Staker contract.
- # "stake" receives USDN and saves the new staking amount in the state.
- # "cancelStake" withdraws the required amount from staking and transfers it to the account.
+# 'SWAP' scenario.
+# Staker contract.
+# "stake" receives USDN and saves the new staking amount in the state.
+# "cancelStake" withdraws the required amount from staking and transfers it to the account.
 
- {-# STDLIB_VERSION 5     #-}
- {-# SCRIPT_TYPE ACCOUNT  #-}
- {-# CONTENT_TYPE DAPP    #-}
+{-# STDLIB_VERSION 5     #-}
+{-# SCRIPT_TYPE ACCOUNT  #-}
+{-# CONTENT_TYPE DAPP    #-}
 
- let usdN = base58''
+let usdN = base58''
 
- @Callable(i)
- func stake() = {
-   if (i.payments[0].assetId != usdN)
-     then
-       throw("unexpected asset")
-     else {
-       let currentLiquidity = this.getInteger(i.originCaller.toString()).valueOrElse(0)
-       [ IntegerEntry(i.originCaller.toString(), currentLiquidity + i.payments[0].amount) ]
-     }
- }
+@Callable(i)
+func stake() = {
+  if (i.payments[0].assetId != usdN)
+    then
+      throw("unexpected asset")
+    else {
+      let currentLiquidity = this.getInteger(i.originCaller.toString()).valueOrElse(0)
+      [ IntegerEntry(i.originCaller.toString(), currentLiquidity + i.payments[0].amount) ]
+    }
+}
 
- @Callable(i)
- func cancelStake(amount: Int) = {
-   if (this.getIntegerValue(i.caller.toString()) >= amount)
-     then
-       [ ScriptTransfer(i.caller, amount, usdN) ]
-     else
-       throw("too big amount")
- }
+@Callable(i)
+func cancelStake(amount: Int) = {
+  if (this.getIntegerValue(i.caller.toString()) >= amount)
+    then
+      [ ScriptTransfer(i.caller, amount, usdN) ]
+    else
+      throw("too big amount")
+}

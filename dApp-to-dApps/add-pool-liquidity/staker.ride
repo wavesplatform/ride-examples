@@ -1,20 +1,20 @@
- # 'ADD POOL LIQUIDITY' scenario.
- # Staker contract.
- # Receives USDN and saves the new staking amount in the state.
+# 'ADD POOL LIQUIDITY' scenario.
+# Staker contract.
+# Receives USDN and saves the new staking amount in the state.
 
- {-# STDLIB_VERSION 5     #-}
- {-# SCRIPT_TYPE ACCOUNT  #-}
- {-# CONTENT_TYPE DAPP    #-}
+{-# STDLIB_VERSION 5     #-}
+{-# SCRIPT_TYPE ACCOUNT  #-}
+{-# CONTENT_TYPE DAPP    #-}
 
- let usdN = base58''
+let usdN = base58''
 
- @Callable(i)
- func stake() = {
-   if (i.payments[0].assetId != usdN)
-     then
-       throw("unexpected asset")
-     else {
-       let currentLiquidity = this.getInteger(i.originCaller.toString()).valueOrElse(0)
-       [ IntegerEntry(i.originCaller.toString(), currentLiquidity + i.payments[0].amount) ]
-     }
- }
+@Callable(i)
+func stake() = {
+  if (i.payments[0].assetId != usdN)
+    then
+      throw("unexpected asset")
+    else {
+      let currentLiquidity = this.getInteger(i.originCaller.toString()).valueOrElse(0)
+      [ IntegerEntry(i.originCaller.toString(), currentLiquidity + i.payments[0].amount) ]
+    }
+}

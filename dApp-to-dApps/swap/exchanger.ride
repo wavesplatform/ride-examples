@@ -1,24 +1,24 @@
- # 'SWAP' scenario.
- # Exchanger contract.
- # Calls the USDN staking contract canceling USDN staking for the amount
- # that the user should receive during the exchange
- # and transfers USDN to the user's address.
+# 'SWAP' scenario.
+# Exchanger contract.
+# Calls the USDN staking contract canceling USDN staking for the amount
+# that the user should receive during the exchange
+# and transfers USDN to the user's address.
 
- {-# STDLIB_VERSION 5     #-}
- {-# SCRIPT_TYPE ACCOUNT  #-}
- {-# CONTENT_TYPE DAPP    #-}
+{-# STDLIB_VERSION 5     #-}
+{-# SCRIPT_TYPE ACCOUNT  #-}
+{-# CONTENT_TYPE DAPP    #-}
 
- let usdN = base58''
- let exchangeRate = 5
- let staker = Address(base58'')
+let usdN = base58''
+let exchangeRate = 5
+let staker = Address(base58'')
 
- @Callable(i)
- func exchangeWavesUsdN() = {
-   if (i.payments[0].assetId != unit)
-     then
-       throw("unexpected asset")
-     else {
-       strict r = invoke(staker, "cancelStake", [i.payments[0].amount * exchangeRate], [])
-       [ ScriptTransfer(i.caller, i.payments[0].amount * exchangeRate, usdN) ]
-     }
- }
+@Callable(i)
+func exchangeWavesUsdN() = {
+  if (i.payments[0].assetId != unit)
+    then
+      throw("unexpected asset")
+    else {
+      strict r = invoke(staker, "cancelStake", [i.payments[0].amount * exchangeRate], [])
+      [ ScriptTransfer(i.caller, i.payments[0].amount * exchangeRate, usdN) ]
+    }
+}
