@@ -1,3 +1,5 @@
+ # 'SWAP' scenario.
+ # Staker contract.
  # "stake" receives USDN and saves the new staking amount in the state.
  # "cancelStake" withdraws the required amount from staking and transfers it to the account.
 

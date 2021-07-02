@@ -1,3 +1,5 @@
+ # 'FLASH LOAN' scenario.
+ # Second exchanger contract.
  # Changes B to A and transfers A to the address of the calling contract.
  # Returns transfer amount.
 
