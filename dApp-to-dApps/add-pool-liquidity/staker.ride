@@ -1,5 +1,7 @@
 # 'ADD POOL LIQUIDITY' scenario.
+#
 # Staker contract.
+#
 # Receives USDN and saves the new staking amount in the state.
 
 {-# STDLIB_VERSION 5     #-}
