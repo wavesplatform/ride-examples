@@ -16,7 +16,7 @@ let loanFeePercent = 5
 @Callable(i)
 func loan(amount: Int, callback: String, borrower: ByteVector) = {
   strict startBalance = this.assetBalance(assetA)
-  strict r = invoke(Address(borrower), callback, [amount, i.caller.bytes], [AttachedPayment(assetA, amount)])
+  strict r = invoke(Address(borrower), callback, [i.caller.bytes], [AttachedPayment(assetA, amount)])
 
   let balanceDiff = this.assetBalance(assetA) - startBalance
   let profit      = amount.fraction(loanFeePercent, 100)

@@ -17,14 +17,19 @@ let exchangerBAAddress = Address(base58'')
 let loanerAddress      = Address(base58'')
 
 @Callable(i)
-func trade(amount: Int, beneficiary: ByteVector) = {
+func trade(beneficiary: ByteVector) = {
+  let loanAmount =
+    if (i.payments[0].assetId == assetA)
+      then i.payments[0].amount
+      else throw("unexpected payment asset")
+
   strict startBalanceB = this.assetBalance(assetB)
-  strict r1 = invoke(exchangerABAddress, "exchangeAB", [], [AttachedPayment(assetA, amount)])
+  strict r1 = invoke(exchangerABAddress, "exchangeAB", [], [AttachedPayment(assetA, loanAmount)])
   strict diffB = this.assetBalance(assetB) - startBalanceB
 
   strict r2 = invoke(exchangerBAAddress, "exchangeBA", [], [AttachedPayment(assetB, diffB)])
 
-  let debt = amount.fraction(100 + loanFeePercent, 100)
+  let debt = loanAmount.fraction(100 + loanFeePercent, 100)
   let profit = this.assetBalance(assetA) - debt
   [
     ScriptTransfer(Address(beneficiary), profit, assetA),
