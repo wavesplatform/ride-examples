@@ -1,6 +1,4 @@
-# 'ADD POOL LIQUIDITY' scenario.
-#
-# Pool contract.
+# This is an example of a pool contract for add liquidity scenario.
 #
 # Increases pool liquidity using attached WAVES tokens for leasing and USDN tokens for staking.
 

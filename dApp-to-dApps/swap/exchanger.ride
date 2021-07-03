@@ -1,6 +1,4 @@
-# 'SWAP' scenario.
-#
-# Exchanger contract.
+# This is an example of a exchanger contract for swap scenario.
 #
 # Calls the USDN staking contract canceling USDN staking for the amount
 # that the user should receive during the exchange

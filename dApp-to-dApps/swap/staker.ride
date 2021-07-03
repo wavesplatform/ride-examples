@@ -1,6 +1,4 @@
-# 'SWAP' scenario.
-#
-# Staker contract.
+# This is an example of a staker contract for swap scenario.
 #
 # "stake" receives USDN and saves the new staking amount in the state.
 # "cancelStake" withdraws the required amount from staking and transfers it to the account.

@@ -1,6 +1,4 @@
-# 'FLASH LOAN' scenario.
-#
-# First exchanger contract.
+# This is an example of a first exchanger contract for flash loan scenario.
 #
 # Changes A to B and transfers B to the address of the calling contract.
 # Returns transfer amount.

@@ -1,6 +1,4 @@
-# 'FLASH LOAN' scenario.
-#
-# Borrower contract.
+# This is an example of a borrower contract for flash loan scenario.
 #
 # Borrows token A, changes to B, then changes the funds received again to A,
 # returns the money to the lender and stays in profit on token A.

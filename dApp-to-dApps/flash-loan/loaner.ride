@@ -1,6 +1,4 @@
-# 'FLASH LOAN' scenario.
-#
-# Loaner contract.
+# This is an example of a loaner contract for flash loan scenario.
 #
 # Calls the contract specified by the borrower when called in the transaction
 # and applies the requested amount of token A in the call.
