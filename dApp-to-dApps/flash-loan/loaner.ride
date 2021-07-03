@@ -1,5 +1,7 @@
 # This is an example of a loaner contract for flash loan scenario.
 #
+# Should be called from the account related to the borrower.
+#
 # Calls the contract specified by the borrower when called in the transaction
 # and applies the requested amount of token A in the call.
 # Checks that upon completion of the call to the contract, the balance of token A has increased.
