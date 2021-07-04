@@ -15,6 +15,10 @@ func stake() = {
       throw("unexpected asset")
     else {
       let currentLiquidity = this.getInteger(i.originCaller.toString()).valueOrElse(0)
-      [ IntegerEntry(i.originCaller.toString(), currentLiquidity + i.payments[0].amount) ]
+      let newLiquidity = currentLiquidity + i.payments[0].amount
+      (
+        [ IntegerEntry(i.originCaller.toString(), newLiquidity) ],
+        newLiquidity
+      )
     }
 }
