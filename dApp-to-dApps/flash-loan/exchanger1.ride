@@ -15,8 +15,7 @@ let assetB = base58''
 func exchangeAB() = {
   if (i.payments[0].assetId == assetA)
     then
-      [ ScriptTransfer(i.caller, i.payments[0].amount * aToBRate
-      , assetB) ]
+      [ ScriptTransfer(i.caller, i.payments[0].amount * aToBRate, assetB) ]
      else
       throw("unexpected token")
 }
