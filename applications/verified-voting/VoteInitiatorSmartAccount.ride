@@ -1,0 +1,23 @@
+
+#deny account data modification if account already voted
+#at the voting start only (address, boolean) data stored to account
+#voter should send binary with address as key and signature+vote transaction id as value
+
+let this = extract(tx.sender)
+
+match (tx) {
+    case d:DataTransaction =>
+        if (size(d.data) == 1 && isDefined(getBinary(this,d.data[0].key))) then
+            throw("account already voted")
+        else
+            if (isDefined(getBoolean(this, d.data[0].key))) then
+                (size(extract(getBinary(d.data, 0))) > 64  || throw("data not includes signature value"))
+                && (addressFromPublicKey(d.proofs[0]) == addressFromString(d.data[0].key) || throw("proof at idx 0 should contain voter public key"))
+                && (sigVerify(d.bodyBytes, d.proofs[1], d.proofs[0]) || throw("invalid tx signature"))
+            else
+                throw("account not in voting list")
+    case s:SetScriptTransaction =>
+        false
+    case _ =>
+        true
+}

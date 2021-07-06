@@ -1,0 +1,67 @@
+let voteBank = tx.sender
+let minimalVotingHeight = 100
+
+match (tx) {
+    case d:DataTransaction =>
+        if (size(d.data) == 2) then
+            #sender should place waves-transfer txId to pay fees for voting in proof[0] of data tx
+            #sender signature in proof[1]
+            let feeTransferId = transactionById(d.proofs[0])
+
+            match (feeTransferId) {
+                case fT:TransferTransaction =>
+                    let votingHeight = extract(getInteger(d.data,0))
+                    (!isDefined(getInteger(voteBank, d.data[0].key)) || throw("asset already registered"))
+                    &&(!isDefined(getBinary(voteBank, d.data[1].key)) || throw("voting already registered"))
+                    && (fT.recipient == voteBank || throw("fee recipient not votebank"))
+                    && !isDefined(fT.assetId)
+                    && votingHeight > height
+                    && (votingHeight - height >= minimalVotingHeight || throw("voting interval should be more than 100 blocks"))
+
+                    #script should guaranty that user payed fees for all transfers
+                    #asset should not have decimals to prevent satoshi calculation
+                    && match(transactionById(fromBase58String(d.data[0].key))){
+                        case i:IssueTransaction =>
+                            let accountScriptedProof = extract(getBinary(d.data, 1))
+                            let accountScriptHash = extract(getBinary(voteBank, "IssuerAccountScriptHash"))
+                            let scriptTx = transactionById(accountScriptedProof)
+
+                            if (fT.amount >= i.quantity * 900000) then
+                                #voting initiator account should be scripted
+                                match (scriptTx){
+                                    case s:SetScriptTransaction =>
+                                        ((sha256(extract(s.script)) == accountScriptHash)
+                                        || throw("script hash not fit requirements"))
+                                    case _ =>
+                                        throw("voting initiator not scripted, or script is wrong")
+                                }
+                                && i.decimals == 0
+                                && fT.senderPublicKey == i.senderPublicKey
+                                && (d.data[1].key == toBase58String(i.sender.bytes) || throw("trying to reg asset of another issuer"))
+                                && (fromBase58String(d.data[0].key) == fT.attachment || throw("fee should be paid for voting asset, put assetId to attachment"))
+                                && (sigVerify(d.bodyBytes, d.proofs[1], fT.senderPublicKey) || throw("wrong signature"))
+                             else
+                                throw("minimum trasfer transaction amount is" + toString(i.quantity * 900000))
+                        case _ =>
+                            throw("data key at 0 index should contain voting asset id")
+                    }
+                case _ =>
+                    throw("proof at index 0 doesn't contain fee transfer transaction")
+            }
+        else
+            throw("data tx should contain two key-value pairs: 0 - assetId-maxVotingHeight, 1 - voting initiator setScriptTx id")
+    case t:TransferTransaction =>
+        if (isDefined(getInteger(voteBank, toBase58String(extract(t.assetId))))) then
+            let h = getInteger(voteBank, toBase58String(extract(t.assetId)))
+            (extract(h) > height)
+                && (addressFromRecipient(t.recipient) == addressFromString(extract(getString(voteBank, "pros")))
+                || addressFromRecipient(t.recipient) == addressFromString(extract(getString(voteBank, "cons"))))
+                && isDefined(getString(voteBank, "pros"))
+                && isDefined(getString(voteBank, "cons"))
+        else
+            throw("you cannot vote with this token. It's not registred")
+    case s:SetScriptTransaction =>
+        sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+    case _ =>
+        false
+  }
