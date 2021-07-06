@@ -1,0 +1,49 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let IdTokenA = base58'BaBy2y5tGsuQZPMM7JHU89zmahR7yybXaVMXpnZ589An'
+let IdTokenB = unit
+
+@Callable(contextObj)
+func exchange() = {
+    let amountA = getIntegerValue(this, "amountA")
+    let amountB = getIntegerValue(this, "amountB")
+    # check and extract info about payment
+    let payment = match(contextObj.payment) {
+        case p:AttachedPayment => p
+        case _ => throw("Payment not attached")
+    }
+    let assetIdReceived = payment.assetId
+    let tokenReceiveAmount = payment.amount
+        # the amount of sent assets are determined in the next block
+        if (assetIdReceived == IdTokenB)
+            then
+            (
+                let tokenSendAmount = (fraction(amountB,tokenReceiveAmount,tokenReceiveAmount + amountA))
+                let assetIdSent = IdTokenA
+                # successful execution result is updating information about actual balance and supply into the state and transfer tokens to the caller
+                ScriptResult(
+                WriteSet([DataEntry("amountB", amountB + tokenReceiveAmount ),DataEntry("amountA", amountA - tokenSendAmount )]),
+                TransferSet([ScriptTransfer(contextObj.caller, tokenSendAmount, assetIdSent)])
+                )
+            )
+        else ( if (assetIdReceived == IdTokenA)
+            then
+            (
+                let tokenSendAmount = (fraction(amountA,tokenReceiveAmount,tokenReceiveAmount + amountB))
+                let assetIdSent = unit
+                # successful execution result is updating information about actual balance and supply into the state and transfer tokens to the caller
+                ScriptResult(
+                WriteSet([DataEntry("amountB", amountB - tokenSendAmount ),DataEntry("amountA", amountA + tokenReceiveAmount )]),
+                TransferSet([ScriptTransfer(contextObj.caller, tokenSendAmount, assetIdSent)])
+                )
+            )
+        else throw("Asset is not allowed"))
+}
+
+
+
+
+
+
