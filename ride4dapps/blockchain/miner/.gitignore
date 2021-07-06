@@ -1,0 +1,15 @@
+.idea/
+*.iml
+*.ipr
+*.iws
+
+.settings/
+.classpath
+.project
+
+out/
+target/
+*.jar
+
+seed.conf
+

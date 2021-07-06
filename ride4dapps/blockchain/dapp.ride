@@ -1,0 +1,413 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# SPECIFY BEFORE SETTING THE CONTRACT!
+let registrationCost = 5
+let initBalance = 5
+let blockMinerReward = 10
+let utxLimit = 100
+
+let keyAccountPrefix = "@"
+let keyAddressPrefix = "$"
+let keyAssetId = "assetId"
+let keyHeight = "height"
+let keyLast = "last"
+let keyUtx = "utx"
+let keyUtxSize = "utx-size"
+
+func h() = getIntegerValue(this, keyHeight)
+func assetId() = this.getStringValue(keyAssetId).fromBase58String()
+
+# hash, timestamp, refHeight, minerAccount, nonce, prevHash, difficulty, gas
+func blockInfo(h: Int) = this.getStringValue(if h == -1 || h == h() then keyLast else h.toString())
+func blockHash(h: Int) = {
+    let blInfo = blockInfo(h)
+    let right = blInfo.indexOf(",").extract()
+    blInfo.take(right)
+}
+func blockTimestamp(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",").extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left)
+}
+func blockReferenceHeight(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",", blInfo.indexOf(",").extract() + 1).extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left).parseIntValue()
+}
+func blockMinerAccount(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",", blInfo.indexOf(",", blInfo.indexOf(",").extract() + 1).extract() + 1).extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left)
+}
+func blockNonce(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",", blInfo.indexOf(",", blInfo.indexOf(",", blInfo.indexOf(",").extract() + 1).extract() + 1).extract() + 1).extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left)
+}
+func blockPrevHash(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",",
+        blInfo.indexOf(",",
+            blInfo.indexOf(",",
+                blInfo.indexOf(",",
+                    blInfo.indexOf(",").extract() + 1
+                ).extract() + 1
+            ).extract() + 1
+        ).extract() + 1
+    ).extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left)
+}
+func blockDifficulty(h: Int) = {
+    let blInfo = blockInfo(h)
+    let left = blInfo.indexOf(",",
+        blInfo.indexOf(",",
+            blInfo.indexOf(",",
+                blInfo.indexOf(",",
+                    blInfo.indexOf(",",
+                        blInfo.indexOf(",").extract() + 1
+                    ).extract() + 1
+                ).extract() + 1
+            ).extract() + 1
+        ).extract() + 1
+    ).extract() + 1
+    let right = blInfo.indexOf(",", left).extract()
+    blInfo.drop(left).take(right - left).parseIntValue()
+}
+func blockGasReward(h: Int) = {
+    let blHeaders = blockInfo(h).split(";")[0].split(",")
+    blHeaders[7].parseIntValue()
+}
+func blockTxs(h: Int) = {
+    let blInfo = blockInfo(h)
+    let semicolon = blInfo.indexOf(";")
+    if isDefined(semicolon) then
+        blInfo.drop(semicolon.extract() + 1)
+    else ""
+}
+
+func address(addr: Address) = addr.bytes.toBase58String()
+func isRegistered(addr: Address) = isDefined(this.getString(keyAddressPrefix + address(addr)))
+func isTaken(name: String) = isDefined(this.getString(keyAccountPrefix + name))
+func accountOf(addr: Address) = this.getStringValue(keyAddressPrefix + address(addr))
+func accountInfo(name: String) = this.getStringValue(keyAccountPrefix + name)
+
+func addressOf(account: String) = {
+    let accInfo = accountInfo(account)
+    let right = accInfo.indexOf(",").extract()
+    take(accInfo, right)
+}
+func regHeightOf(account: String) = {
+    let accInfo = accountInfo(account)
+    let left = accInfo.indexOf(",").extract() + 1
+    let right = accInfo.indexOf(",", left).extract()
+    accInfo.drop(left).take(right - left).parseIntValue()
+}
+func totalBalanceOf(account: String) = {
+    let accInfo = accountInfo(account)
+    let left = accInfo.indexOf(",", accInfo.indexOf(",").extract() + 1).extract() + 1
+    let right = accInfo.indexOf(",", left).extract()
+    accInfo.drop(left).take(right - left).parseIntValue()
+}
+func availableBalanceOf(account: String) = {
+    let accInfo = accountInfo(account)
+    let left = accInfo.indexOf(",", accInfo.indexOf(",", accInfo.indexOf(",").extract() + 1).extract() + 1).extract() + 1
+    let right = accInfo.size()
+    accInfo.drop(left).take(right - left).parseIntValue()
+}
+
+func estimate(script: String) = {
+    let words = script.split(" ")
+
+    if words[0] == "SEND" then
+        let gasRequired = 1
+        let amount = words[2].parseIntValue()
+        [gasRequired, amount]
+    else if words[0] == "SWAP" then
+        let gasRequired = 2
+        let direction = words[1].split(" ")[1]
+        let amount = if direction == "IN" then 0 else words[2].parseIntValue()
+        [gasRequired, amount]
+    else [1000000, 0] # unreachable state because validated
+}
+
+func evaluate(script: String, inv: Invocation) = {
+    let words = script.split(" ")
+    func send(recipient: String, amount: Int) = {
+        ScriptResult(
+            WriteSet([
+                DataEntry(keyAccountPrefix + recipient, addressOf(recipient) + "," + regHeightOf(recipient).toString() + ","
+                    + (totalBalanceOf(recipient) + amount).toString() + "," + (availableBalanceOf(recipient) + amount).toString())
+            ]),
+            TransferSet([])
+        )
+    }
+    func swap(acc: String, direction: String, amount: Int) = {
+        if direction == "IN" then
+            ScriptResult(
+                WriteSet([
+                    DataEntry(keyAccountPrefix + acc, addressOf(acc) + "," + regHeightOf(acc).toString() + ","
+                        + (totalBalanceOf(acc) + amount).toString() + "," + (availableBalanceOf(acc) + amount).toString())
+                ]),
+                TransferSet([])
+            )
+        else
+            ScriptResult(
+                WriteSet([
+                    DataEntry(keyAccountPrefix + acc, addressOf(acc) + "," + regHeightOf(acc).toString() + ","
+                        + (totalBalanceOf(acc) - amount).toString() + "," + availableBalanceOf(acc).toString())
+                ]),
+                TransferSet([
+                    ScriptTransfer(inv.caller, amount, assetId())
+                ])
+            )
+    }
+
+    if words[0] == "SEND" then
+        send(words[1].split(" ")[1], words[2].parseIntValue())
+    else if words[0] == "SWAP" then
+        swap(accountOf(inv.caller), words[1].split(" ")[1], words[2].parseIntValue())
+    else throw("can't evaluate script") # unreachable state because validated
+}
+
+func validate(acc: String, gas: Int, script: String, inv: Invocation, checkBalance: Boolean) = {
+    let words = script.split(" ")
+
+    if words[0] == "SEND" then
+        if words.size() != 3 then "Missed args: SEND recipient amount"
+        else
+            let gasRequired = estimate(script)[0]
+            let recipient = words[1].split(" ")[1]
+            let amount = words[2].parseIntValue()
+
+            if !isTaken(recipient) then "recipient '" + recipient + "' doesn't exist"
+            else if recipient == acc then "sender can't do SEND to itself"
+            else if amount < 1 then "amount " + amount.toString() + " must be a positive number"
+            else if !(gas > 0) then "Gas amount must be positive!"
+            else if gas < gasRequired then "Not enough gas: actual " + gas.toString() + " but " + gasRequired.toString() + " estimated"
+            else if checkBalance && availableBalanceOf(acc) < gas + amount then "Not enough available balance for payment and gas"
+            else ""
+    else if words[0] == "SWAP" then
+        if words.size() != 3 then "Missed args: SWAP [IN/OUT] amount"
+        else
+            let gasRequired = estimate(script)[0]
+            let direction = words[1].split(" ")[1]
+            let amount = words[2].parseIntValue()
+
+            if direction == "IN" then
+                if !isDefined(inv.payment) then "Payment is required for the transaction!"
+                else
+                    let pmt = extract(inv.payment)
+                    if pmt.amount != amount || pmt.assetId != assetId() then "Required payment is exactly " + amount.toString() + " of asset " + assetId().toBase58String()
+                    else if !(gas > 0) then "Gas amount must be positive!"
+                    else if gas < gasRequired then "Not enough gas: actual " + gas.toString() + " but " + gasRequired.toString() + " estimated"
+                    else if checkBalance && availableBalanceOf(acc) < gas then "Not enough available balance for gas"
+                    else ""
+            else if direction == "OUT" then
+                if !(gas > 0) then "Gas amount must be positive!"
+                else if gas < gasRequired then "Not enough gas: actual " + gas.toString() + " but " + gasRequired.toString() + " estimated"
+                else if checkBalance && availableBalanceOf(acc) < gas + amount then "Not enough available balance for SWAP and gas"
+                else ""
+            else "Argument \"direction\" must be \"IN\" or \"OUT\""
+    else
+        "unknown command " + words[0]
+}
+
+@Callable(i)
+func genesis(assetId: String) = {
+    let asset = assetInfo(assetId.fromBase58String())
+    if i.caller != this then
+        throw("Rudechain can be created only by the dApp")
+    else if isDefined(this.getString(keyLast))
+        || isDefined(this.getInteger(keyHeight))
+        || isDefined(this.getInteger(keyUtx))
+        || isDefined(this.getInteger(keyUtxSize))
+    then
+        throw("Rudechain is already created")
+    else if !isDefined(asset) then throw("Asset '" + assetId + "' doesn't exist!")
+    else if this.assetBalance(assetId.fromBase58String()) != asset.extract().totalAmount || asset.extract().decimals != 0 || asset.extract().issuer != this.bytes then
+        throw("Incorrect asset. It must be issued by the dApp with 0 decimals and the dApp must have the entire quantity")
+    else
+        let minerName = "dapp"
+        let gHeight = 0
+        # hash, timestamp, refHeight, minerAccount, nonce, prevHash, difficulty, gas
+        let hash = (lastBlock.timestamp.toString() + lastBlock.height.toString() + minerName + "0").toBytes().blake2b256().toBase58String()
+        let genesisBlock = hash + "," + lastBlock.timestamp.toString() + "," + lastBlock.height.toString() + "," + minerName + ",0,0,1,0"
+        WriteSet([
+            DataEntry(keyAssetId, assetId),
+            DataEntry(keyLast, genesisBlock),
+            DataEntry(keyHeight, gHeight),
+            DataEntry(keyUtx, ""),
+            DataEntry(keyUtxSize, 0),
+            DataEntry(keyAddressPrefix + address(this), "dapp"),
+            DataEntry(keyAccountPrefix + "dapp", address(this) + "," + gHeight.toString() + ",0,0")
+        ])
+}
+
+@Callable(i)
+func register(name: String) = {
+    let validChars = "abcdefghijklmnopqrstuvwxyz0123456789"
+
+    if (!isDefined(i.payment) || isDefined(i.payment.extract().assetId) || i.payment.extract().amount != registrationCost * 100000000) then
+        throw("Registration costs " + registrationCost.toString() + " Waves!")
+    else if !(name.size() > 1 && name.size() <= 8
+        && isDefined(validChars.indexOf(name.take(1)))
+        && isDefined(validChars.indexOf(name.drop(1).take(1)))
+        && (if (name.size() > 2) then isDefined(validChars.indexOf(name.drop(2).take(1))) else true)
+        && (if (name.size() > 3) then isDefined(validChars.indexOf(name.drop(3).take(1))) else true)
+        && (if (name.size() > 4) then isDefined(validChars.indexOf(name.drop(4).take(1))) else true)
+        && (if (name.size() > 5) then isDefined(validChars.indexOf(name.drop(5).take(1))) else true)
+        && (if (name.size() > 6) then isDefined(validChars.indexOf(name.drop(6).take(1))) else true)
+        && (if (name.size() > 7) then isDefined(validChars.indexOf(name.drop(7).take(1))) else true))
+    then
+        throw("Account name must have [2..8] length and contain only [a-z0-9] chars")
+    else if isRegistered(i.caller) then
+        throw("Address of the caller is already registered as '" + accountOf(i.caller) + "'")
+    else if isTaken(name) then
+        throw("Account name '" + name + "' is already taken")
+    else
+        WriteSet([
+            DataEntry(keyAddressPrefix + address(i.caller), name),
+            DataEntry(keyAccountPrefix + name, address(i.caller) + "," + h().toString() + "," + initBalance.toString() + "," + initBalance.toString())
+        ])
+}
+
+@Callable(i)
+func mine(nonce: Int) = {
+    let delta = lastBlock.height - blockReferenceHeight(-1)
+    let difficulty = blockDifficulty(-1)
+    let newDifficulty = if delta == 1 then difficulty + 3 else if delta == 2 || delta == 3 then difficulty + 1 else if difficulty - (delta / 2) > 0 then difficulty - (delta / 2) else 1
+
+    let hash = blake2b256((
+        lastBlock.timestamp.toString()
+        + lastBlock.height.toString()
+        + accountOf(i.caller)
+        + nonce.toString()
+        + blockPrevHash(-1)
+    ).toBytes())
+
+    let byte0LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(1).toBase58String())
+    let byte1LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(2).takeRight(1).toBase58String())
+    let byte2LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(3).takeRight(1).toBase58String())
+    let byte3LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(4).takeRight(1).toBase58String())
+    let byte4LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(5).takeRight(1).toBase58String())
+    let byte5LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(6).takeRight(1).toBase58String())
+    let byte6LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(7).takeRight(1).toBase58String())
+    let byte7LeadingZeros = Alias("zerobytes").getIntegerValue(hash.take(8).takeRight(1).toBase58String())
+
+    let firstZeroBits = if byte0LeadingZeros != 8 then byte0LeadingZeros else ( 8 +
+                        if byte1LeadingZeros != 8 then byte1LeadingZeros else ( 8 +
+                        if byte2LeadingZeros != 8 then byte2LeadingZeros else ( 8 +
+                        if byte3LeadingZeros != 8 then byte3LeadingZeros else ( 8 +
+                        if byte4LeadingZeros != 8 then byte4LeadingZeros else ( 8 +
+                        if byte5LeadingZeros != 8 then byte5LeadingZeros else ( 8 +
+                        if byte6LeadingZeros != 8 then byte6LeadingZeros else ( 8 +
+                                                        byte7LeadingZeros)))))))
+
+    if i.caller == this then throw("The dApp can't mine!")
+    else if !isRegistered(i.caller) then throw("Miner must be registered!")
+    else if delta == 0 then throw("Can't mine on same reference height as last block: " + lastBlock.height.toString())
+    else if firstZeroBits < newDifficulty then throw("Hash has difficulty " + firstZeroBits.toString() + ", but at least " + newDifficulty.toString() + " is required")
+    else
+        let prevMinerAccount = blockMinerAccount(-1)
+        let newMinerAccount = accountOf(i.caller)
+        let newHeight = h() + 1
+        let newBlock = hash.toBase58String()
+            + "," + lastBlock.timestamp.toString()
+            + "," + lastBlock.height.toString()
+            + "," + newMinerAccount
+            + "," + nonce.toString()
+            + "," + blockPrevHash(-1)
+            + "," + newDifficulty.toString()
+            + ",0"
+
+        WriteSet([
+            DataEntry(keyHeight, newHeight),
+            DataEntry(keyAccountPrefix + prevMinerAccount, addressOf(prevMinerAccount) + "," + regHeightOf(prevMinerAccount).toString() + ","
+                + (totalBalanceOf(prevMinerAccount) + blockGasReward(-1)).toString() + "," + (availableBalanceOf(prevMinerAccount) + blockGasReward(-1)).toString()),
+            DataEntry(h().toString(), blockInfo(-1)),
+            DataEntry(keyAccountPrefix + newMinerAccount, addressOf(newMinerAccount) + "," + regHeightOf(newMinerAccount).toString() + ","
+                + (totalBalanceOf(newMinerAccount) + blockMinerReward).toString() + "," + (availableBalanceOf(newMinerAccount) + blockMinerReward).toString()),
+            DataEntry(keyLast, newBlock)
+        ])
+}
+
+@Callable(i)
+func utxProcessing() = {
+    let utx = this.getStringValue(keyUtx)
+    let utxSize = this.getIntegerValue(keyUtxSize)
+
+    if i.caller.bytes != addressOf(blockMinerAccount(-1)).fromBase58String() then throw("Only the current miner can processing UTX!")
+    else if utxSize == 0 then WriteSet([])
+    else
+        let tx = utx.split(";")[0]
+        let txFields = tx.split(",")
+
+        let txSenderAccount = txFields[0]
+        let txGas = txFields[1].split(",")[1].parseIntValue()
+        let txScript = txFields[2]
+
+        let txSender = addressOf(txSenderAccount)
+        let validation = validate(txSender, txGas, txScript, i, false)
+        let costs = estimate(txScript)
+
+        if validation.size() > 0 then
+            WriteSet([DataEntry(keyUtxSize, utxSize - 1), DataEntry(keyUtx, utx.drop(tx.size() + 1))])
+        else
+            let increasedReward = blockGasReward(-1) + costs[0]
+            let txs = if isDefined(blockInfo(-1).indexOf(";")) then ";" + blockTxs(-1) else ""
+            let result = evaluate(txScript, i)
+
+            ScriptResult(
+                WriteSet(
+                    DataEntry(keyLast, blockHash(-1) + "," + blockTimestamp(-1) + "," + blockReferenceHeight(-1).toString() + "," + blockMinerAccount(-1) + ","
+                        + blockNonce(-1) + "," + blockPrevHash(-1) + "," + blockDifficulty(-1).toString() + "," + increasedReward.toString() + txs + ";" + tx)
+                    ::DataEntry(keyUtxSize, utxSize - 1)
+                    ::DataEntry(keyUtx, utx.drop(tx.size() + 1))
+                    ::DataEntry( keyAccountPrefix + txSenderAccount, txSender + "," + regHeightOf(txSenderAccount).toString() + ","
+                        + (totalBalanceOf(txSenderAccount) - costs[0] - costs[1]).toString() + ","
+                        + (availableBalanceOf(txSenderAccount) - costs[0] + txGas).toString() )
+                    ::result.data.data
+                ),
+                TransferSet(result.transfers.transfers)
+            )
+}
+
+@Callable(i)
+func transaction(gas: Int, script: String) = {
+    if i.caller == this then throw("The Rudechain dApp can't send transactions!")
+    else if !isRegistered(i.caller) then throw("Only registered accounts can send transactions!")
+    else if this.getIntegerValue(keyUtxSize) == utxLimit then throw("UTX size limit reached! Please try later")
+    else
+        let sender = accountOf(i.caller)
+        let txBody = sender + "," + gas.toString() + "," + script
+        let validation = validate(sender, gas, script, i, true)
+        let costs = estimate(script)
+        let reserved = costs[0] + costs[1]
+
+        if validation.size() > 0 then throw(validation)
+        else
+            let utxPool = this.getStringValue(keyUtx)
+            let utxSize = this.getIntegerValue(keyUtxSize)
+            let newUtxPool = if (utxSize > 0) then utxPool + ";" + txBody else txBody
+            WriteSet([
+                DataEntry(keyUtx, newUtxPool),
+                DataEntry(keyUtxSize, utxSize + 1),
+                DataEntry(keyAccountPrefix + sender, addressOf(sender) + "," + regHeightOf(sender).toString() + "," + totalBalanceOf(sender).toString() + ","
+                    + (availableBalanceOf(sender) - reserved).toString())
+            ])
+}
+
+@Verifier(tx)
+func verify() = {
+    match tx {
+        case d:DataTransaction => false # rudechain can be changed only via dApp actions
+        case _ => tx.bodyBytes.sigVerify(tx.proofs[0], tx.senderPublicKey)
+    }
+}
