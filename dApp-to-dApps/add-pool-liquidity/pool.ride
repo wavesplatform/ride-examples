@@ -1,0 +1,49 @@
+# This is an example of a pool contract for add liquidity scenario.
+#
+# Increases pool liquidity using attached WAVES tokens for leasing and USDN tokens for staking.
+
+{-# STDLIB_VERSION 5     #-}
+{-# SCRIPT_TYPE ACCOUNT  #-}
+{-# CONTENT_TYPE DAPP    #-}
+
+let usdN = base58''
+let staker = Address(base58'')
+let leasePool = Address(base58'')
+let shareToken = base58''
+
+@Callable(i)
+func addLiquidity() = {
+  if (i.payments[0].assetId != unit || i.payments[1].assetId != usdN)
+    then
+      throw("unexpected assets")
+    else {
+      strict r = invoke(staker, "stake", [], [i.payments[1]])
+      let stakingAmount = match r {
+        case a: Int => a
+        case _      => throw("unexpected result type from the staker")
+      } 
+        
+      let stakingAmountKey = "STAKING_AMOUNT_" + i.caller.toString()
+      let leaseAmountKey   = "LEASE_AMOUNT_" + i.caller.toString()
+      let idKey            = "ID_" + i.caller.toString()
+
+      let leasedAmount = this.getInteger(leaseAmountKey).valueOrElse(0)
+      let leaseId      = this.getString(idKey)
+
+      let newLease   = Lease(leasePool, leasedAmount + i.payments[0].amount)
+      let newLeaseId = calculateLeaseId(newLease)
+
+      let cancel = match leaseId {
+        case id: String => [ LeaseCancel(fromBase58String(id)) ]
+        case _          => [ StringEntry(idKey, toBase58String(newLeaseId)) ]
+      }
+
+      cancel ++
+      [
+        newLease,
+        ScriptTransfer(i.caller, 1, shareToken),
+        IntegerEntry(leaseAmountKey, leasedAmount + i.payments[0].amount),
+        IntegerEntry(stakingAmountKey, stakingAmount)
+      ]
+    }
+}
