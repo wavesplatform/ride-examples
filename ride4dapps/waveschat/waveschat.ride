@@ -1,0 +1,83 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let defaultAmount = 0
+let maxAmount = 5_0000_0000
+
+@Callable(invoke)
+func init(publicKey: ByteVector, channel: String) = {
+    let publicKeyHash = toBase58String(blake2b256(publicKey))
+    let channelId = toBase58String(blake2b256(toBytes(channel)))
+    let currentKey = "current_" + channelId
+    let currentAmountKey = "current_amount_" + channelId
+    let isPublicChannel = size(channel) < 6
+
+    let pmtAmount = match invoke.payment {
+        case pmt:AttachedPayment =>
+            if (isDefined(pmt.assetId)) then 0
+            else pmt.amount
+        case _ =>
+            0
+    }
+
+    let requiredAmount = match getInteger(this, currentAmountKey) {
+        case currentAmount: Int => currentAmount
+        case _ => 0
+    }
+
+    let newRequiredAmount = if (isPublicChannel && pmtAmount >= maxAmount) then maxAmount else pmtAmount
+
+    if (pmtAmount < requiredAmount)
+        then throw("Init requires " + toString(requiredAmount / 100000000) + " waves")
+    else {
+        match getBinary(this, publicKeyHash + "_owner") {
+            case b: ByteVector =>
+                if (b != invoke.caller.bytes) then throw("Public key is not yours")
+                else {
+                    match getBinary(this, currentKey) {
+                        case left:ByteVector =>
+                            let leftHash = toBase58String(blake2b256(left))
+                            WriteSet([DataEntry(publicKeyHash + "_owner", invoke.caller.bytes), DataEntry(leftHash, publicKey), DataEntry(publicKeyHash, left), DataEntry(currentKey, 0), DataEntry(currentAmountKey, defaultAmount)])
+
+                        case _ =>
+                            WriteSet([DataEntry(publicKeyHash + "_owner", invoke.caller.bytes), DataEntry(currentKey, publicKey), DataEntry(currentAmountKey, newRequiredAmount)])
+                    }
+                }
+
+            case _ =>
+                match getBinary(this, currentKey) {
+                    case left:ByteVector =>
+                        let leftHash = toBase58String(blake2b256(left))
+                        WriteSet([DataEntry(publicKeyHash + "_owner", invoke.caller.bytes), DataEntry(leftHash, publicKey), DataEntry(publicKeyHash, left), DataEntry(currentKey, 0), DataEntry(currentAmountKey, defaultAmount)])
+
+                    case _ =>
+                        WriteSet([DataEntry(publicKeyHash + "_owner", invoke.caller.bytes), DataEntry(currentKey, publicKey), DataEntry(currentAmountKey, newRequiredAmount)])
+                }
+        }
+    }
+}
+
+@Callable(invoke)
+func sendMessage(publicKey: ByteVector, message: ByteVector) = {
+    let publicKeyHash = toBase58String(blake2b256(publicKey))
+
+    match getBinary(this, publicKeyHash + "_owner") {
+        case assignedCaller: ByteVector =>
+            if (assignedCaller != invoke.caller.bytes) then throw("Public keys not match")
+            else match getBinary(this, publicKeyHash) {
+                case right: ByteVector =>
+                    let conversationId = toBase58String(blake2b256(publicKey + right))
+                    let nonceKey = conversationId + "_n"
+                    let nonce = match getInteger(this, nonceKey) {
+                        case i: Int => i + 1
+                        case _ => 1
+                    }
+                    WriteSet([DataEntry(conversationId + "_" + toString(nonce), message), DataEntry(nonceKey, nonce)])
+
+                case _ => throw("Not initialized")
+            }
+
+        case _ => throw("Owner not defined")
+    }
+}
